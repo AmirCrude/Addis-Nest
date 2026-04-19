@@ -88,6 +88,16 @@ export const api = {
     return data.data; // single property object
   },
 
+  getPropertyAmenities: async (propertyId) => {
+    const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/amenities`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await handleResponse(response);
+    
+    return data.data; // This will be your array of amenities
+  },
+
+
   // Future endpoints (add when needed)
   // createProperty: async (formData) => { ... },
   // uploadPropertyImage: async (propertyId, file) => { ... },

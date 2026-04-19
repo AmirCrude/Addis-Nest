@@ -113,7 +113,7 @@ export default function Properties() {
       <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {filteredProperties.map((property) => (
           <div
-            key={property.id}
+            key={property.property_id}
             className="bg-[#0b3d3d] text-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition group border border-white/10"
           >
             <div className="relative h-44 overflow-hidden">

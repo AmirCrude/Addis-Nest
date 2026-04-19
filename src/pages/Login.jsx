@@ -15,8 +15,7 @@ export default function Login() {
     try {
       await api.login(form.email, form.password);
       // This ONLY runs if login is successful
-      navigate("/properties"); 
-      console.log("Login successful here is what the token contains: ", localStorage.getItem("token"));
+      navigate("/properties");
     } catch (err) {
       // This ONLY runs if login fails
       setError(err.message);
