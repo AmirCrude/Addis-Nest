@@ -1,81 +1,83 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../utils/api";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await api.login(form.email, form.password);
+      // This ONLY runs if login is successful
+      navigate("/properties"); 
+      console.log("Login successful here is what the token contains: ", localStorage.getItem("token"));
+    } catch (err) {
+      // This ONLY runs if login fails
+      setError(err.message);
+      console.error("Login error:", err);
+      // Stay on page, but clear the password for security/retry
+      setForm(prev => ({ ...prev, password: "" })); 
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen  bg-gray-50 flex items-center justify-center px-4">
-
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md mt-20 bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
-
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="text-4xl mb-2 text-[#087474]">🏠</div>
-
-          <h2 className="text-2xl font-bold text-gray-800">
-            Welcome Back
-          </h2>
-
-          <p className="text-gray-500 text-sm">
-            Sign in to your AddisNest account
-          </p>
+          <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
+          <p className="text-gray-500 text-sm">Sign in to your AddisNest account</p>
         </div>
 
-        {/* Form */}
-        <form className="space-y-5">
-
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Email Address
-            </label>
+            <label className="block text-sm text-gray-600 mb-1">Email Address</label>
             <input
               type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
               placeholder="you@example.com"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#087474] focus:border-[#087474] transition"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#087474]"
+              required
             />
           </div>
-
           <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              Password
-            </label>
+            <label className="block text-sm text-gray-600 mb-1">Password</label>
             <input
               type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="••••••••"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#087474] focus:border-[#087474] transition"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#087474]"
+              required
             />
           </div>
 
-          {/* Extra options */}
-          <div className="flex justify-between items-center text-sm">
-            <label className="flex items-center gap-2 text-gray-500">
-              <input type="checkbox" className="accent-[#087474]" />
-              Remember me
-            </label>
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
-            <a href="#" className="text-[#087474] hover:underline">
-              Forgot password?
-            </a>
-          </div>
-
-          {/* Button */}
           <button
             type="submit"
-            className="w-full bg-[#087474] text-white py-3 rounded-lg font-semibold hover:bg-[#066565] transition shadow-sm hover:shadow-md"
+            disabled={loading}
+            className="w-full bg-[#087474] text-white py-3 rounded-lg font-semibold hover:bg-[#066565] disabled:opacity-50"
           >
-            Sign In
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
-        {/* Footer */}
         <p className="text-center mt-6 text-gray-600 text-sm">
           Don’t have an account?{" "}
-          <Link
-            to="/register"
-            className="text-[#087474] font-medium hover:underline"
-          >
+          <Link to="/register" className="text-[#087474] font-medium hover:underline">
             Sign Up
           </Link>
         </p>
-
       </div>
     </div>
   );
