@@ -1,45 +1,70 @@
-import { Link } from "react-router-dom";
+// src/pages/Home.jsx
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import bgImage from "../assets/home.png";
 import Map from "../components/Map";
-
-const forRentProperties = [
-  {
-    id: 1,
-    title: "Cozy Studio in Mexico",
-    location: "Mexico, Addis Ababa",
-    price: "12,000",
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 55,
-    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500",
-  },
-  {
-    id: 2,
-    title: "Luxury Penthouse",
-    location: "Kazanchis, Addis Ababa",
-    price: "80,000",
-    bedrooms: 3,
-    bathrooms: 3,
-    area: 180,
-    image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=500",
-  },
-  {
-    id: 3,
-    title: "Affordable Studio",
-    location: "Piazza, Addis Ababa",
-    price: "8,000",
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 40,
-    image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500",
-  },
-];
+import PropertyCard from "../components/PropertyCard";
+import api from "../utils/api";
 
 export default function Home() {
+  const navigate = useNavigate();
+  const [featuredProperties, setFeaturedProperties] = useState([]);
+  const [latestProperties, setLatestProperties] = useState([]);
+  const [mapProperties, setMapProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Search state
+  const [searchFilters, setSearchFilters] = useState({
+    minPrice: "",
+    maxPrice: "",
+    location: ""
+  });
+
+  const locations = [
+    "Addis Ababa", "Bole", "Piassa", "Megenagna", 
+    "CMC", "Summit", "Jemo", "Mexico", "Saris", "Ayat"
+  ];
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const [featuredRes, latestRes, mapRes] = await Promise.all([
+          api.getProperties({ featured: true, limit: 6 }),
+          api.getProperties({ latest: true, limit: 6 }),
+          api.getProperties({ limit: 20 })
+        ]);
+  
+        // Your API returns { data: [...] } structure
+        setFeaturedProperties(featuredRes.data || featuredRes || []);
+        setLatestProperties(latestRes.data || latestRes || []);
+        setMapProperties(mapRes.data || mapRes || []);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+        setFeaturedProperties([]);
+        setLatestProperties([]);
+        setMapProperties([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchProperties();
+  }, []);
+  
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (searchFilters.minPrice) params.append("minPrice", searchFilters.minPrice);
+    if (searchFilters.maxPrice) params.append("maxPrice", searchFilters.maxPrice);
+    if (searchFilters.location) params.append("location", searchFilters.location);
+    
+    navigate(`/properties?${params.toString()}`);
+  };
+
   return (
     <div className="bg-gray-50">
 
-      {/* HERO */}
+      {/* HERO SECTION - KEEP EXISTING */}
       <div className="bg-[#0b3d3d] text-white">
         <div className="max-w-7xl mx-auto px-6 py-24 flex flex-col lg:flex-row items-center gap-12">
 
@@ -73,96 +98,119 @@ export default function Home() {
         </div>
       </div>
 
-      {/* SEARCH */}
+      {/* UPDATED SEARCH BAR */}
       <div className="max-w-5xl mx-auto px-6 -mt-10 relative z-20">
-        <div className="bg-white rounded-2xl shadow-2xl p-5 border">
+        <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-2xl p-5 border">
           <div className="grid md:grid-cols-4 gap-3">
-
-            <div className="bg-gray-50 border rounded-lg px-3 py-2 text-sm">
-              For Rent
+            
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Min Price (ETB)</label>
+              <input
+                type="number"
+                placeholder="2,000"
+                value={searchFilters.minPrice}
+                onChange={(e) => setSearchFilters({...searchFilters, minPrice: e.target.value})}
+                className="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm"
+              />
             </div>
 
-            <div className="bg-gray-50 border rounded-lg px-3 py-2 text-sm">
-              ETB 2k - 20k
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Max Price (ETB)</label>
+              <input
+                type="number"
+                placeholder="20,000"
+                value={searchFilters.maxPrice}
+                onChange={(e) => setSearchFilters({...searchFilters, maxPrice: e.target.value})}
+                className="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm"
+              />
             </div>
 
-            <div className="bg-gray-50 border rounded-lg px-3 py-2 text-sm">
-              Addis Ababa
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Location</label>
+              <select
+                value={searchFilters.location}
+                onChange={(e) => setSearchFilters({...searchFilters, location: e.target.value})}
+                className="w-full bg-gray-50 border rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">All Locations</option>
+                {locations.map(loc => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
             </div>
 
-            <Link to="/properties">
-              <button className="w-full h-full bg-[#087474] text-white rounded-lg font-medium hover:bg-[#066565] transition">
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="w-full bg-[#087474] text-white rounded-lg font-medium hover:bg-[#066565] transition py-2"
+              >
                 Search
               </button>
-            </Link>
+            </div>
 
           </div>
-        </div>
+        </form>
       </div>
 
-      {/* FEATURED */}
+      {/* FEATURED PROPERTIES - NOW DYNAMIC */}
       <div className="max-w-7xl mx-auto px-6 py-16">
-
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-bold text-gray-800">
             Featured Rentals
           </h2>
-
           <Link to="/properties" className="text-[#087474] font-medium hover:underline">
             View all →
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-          {forRentProperties.map((property) => (
-            <div
-              key={property.id}
-              className="bg-[#0b3d3d] text-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition group"
-            >
-              <div className="relative h-40 overflow-hidden">
-                <img
-                  src={property.image}
-                  alt={property.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-
-                <span className="absolute top-3 left-3 bg-[#087474] text-xs px-2 py-1 rounded-full">
-                  For Rent
-                </span>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#087474] mx-auto"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredProperties.length > 0 ? (
+              featuredProperties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))
+            ) : (
+              <div className="col-span-full text-center text-gray-500 py-12">
+                No featured properties available yet.
               </div>
+            )}
+          </div>
+        )}
+      </div>
 
-              <div className="p-4">
-                <h3 className="text-sm font-semibold">{property.title}</h3>
+      {/* LATEST PROPERTIES SECTION */}
+      <div className="bg-white py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold text-gray-800">
+              Latest Listings
+            </h2>
+            <Link to="/properties" className="text-[#087474] font-medium hover:underline">
+              View all →
+            </Link>
+          </div>
 
-                <p className="text-white/60 text-xs mt-1">
-                  📍 {property.location}
-                </p>
-
-                <div className="flex justify-between text-xs text-white/60 mt-2 border-b border-white/10 pb-2">
-                  <span>{property.bedrooms} Bed</span>
-                  <span>{property.bathrooms} Bath</span>
-                  <span>{property.area} m²</span>
+          {!loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {latestProperties.length > 0 ? (
+                latestProperties.map((property) => (
+                  <PropertyCard key={property.id} property={property} />
+                ))
+              ) : (
+                <div className="col-span-full text-center text-gray-500 py-12">
+                  No latest listings available yet.
                 </div>
-
-                <div className="flex justify-between items-center mt-3">
-                  <span className="text-lg font-bold">
-                    {property.price} ETB
-                  </span>
-
-                  <Link to={`/property/${property.id}`}>
-                    <button className="bg-[#fbbf24] text-black px-3 py-1.5 rounded-md text-xs font-semibold hover:scale-105 transition">
-                      View
-                    </button>
-                  </Link>
-                </div>
-              </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* ABOUT SECTION */}
+      {/* ABOUT SECTION - KEEP EXISTING */}
       <div id="about" className="bg-white py-20 border-t">
         <div className="max-w-6xl mx-auto px-6 text-center">
 
@@ -203,56 +251,29 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MAP + CARDS SIDE BY SIDE */}
-<div className="max-w-7xl mx-auto px-6 pb-16">
-  <div className="grid lg:grid-cols-2 gap-6 items-stretch">
+      {/* MAP + CARDS SECTION - NOW DYNAMIC */}
+      <div className="max-w-7xl mx-auto px-6 pb-16">
+        <h2 className="text-2xl font-bold text-gray-800 mb-8">
+          Explore on Map
+        </h2>
+        <div className="grid lg:grid-cols-2 gap-6 items-stretch">
 
-    {/* LEFT: PROPERTY CARDS */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 auto-rows-fr">
-
-      {forRentProperties.map((property) => (
-        <div
-          key={property.id}
-          className="bg-[#0b3d3d] text-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition flex flex-col"
-        >
-          <img
-            src={property.image}
-            alt={property.title}
-            className="h-36 w-full object-cover"
-          />
-
-          <div className="p-3 flex flex-col justify-between flex-1">
-            <div>
-              <h3 className="text-sm font-semibold">{property.title}</h3>
-              <p className="text-xs text-white/60 mt-1">
-                {property.location}
-              </p>
-            </div>
-
-            <div className="mt-3 flex justify-between items-center">
-              <span className="text-sm font-bold text-[#fbbf24]">
-                {property.price} ETB
-              </span>
-
-              <span className="text-xs text-white/60">
-                {property.bedrooms} Bed
-              </span>
-            </div>
+          {/* LEFT: PROPERTY CARDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 auto-rows-fr">
+            {latestProperties.slice(0, 4).map((property) => (
+              <PropertyCard key={property.id} property={property} />
+            ))}
           </div>
+
+          {/* RIGHT: MAP WITH REAL DATA */}
+          <div className="bg-white p-4 rounded-2xl shadow-md border h-full min-h-[300px]">
+            <Map properties={mapProperties} />
+          </div>
+
         </div>
-      ))}
+      </div>
 
-    </div>
-
-    {/* RIGHT: MAP */}
-    <div className="bg-white p-4 rounded-2xl shadow-md border h-full min-h-[300px]">
-      <Map />
-    </div>
-
-  </div>
-</div>
-
-      {/* FOOTER */}
+      {/* FOOTER - KEEP EXISTING */}
       <footer className="bg-[#0b3d3d] text-white py-12">
         <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8">
 

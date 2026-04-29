@@ -1,9 +1,12 @@
+// src/pages/Login.jsx - UPDATE the handleSubmit function only
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,14 +16,22 @@ export default function Login() {
     setLoading(true);
     setError("");
     try {
-      await api.login(form.email, form.password);
-      // This ONLY runs if login is successful
-      navigate("/properties");
+      const response = await api.login(form.email, form.password);
+      
+      // Extract user data from response
+      const userData = {
+        email: form.email,
+        role: response.data?.role || localStorage.getItem('role'),
+        firstName: response.data?.firstName || form.email.split('@')[0],
+        id: response.data?.id
+      };
+      
+      // Store in auth context and localStorage
+      login(response.data?.token || localStorage.getItem('token'), userData);
+      navigate("/");
     } catch (err) {
-      // This ONLY runs if login fails
       setError(err.message);
       console.error("Login error:", err);
-      // Stay on page, but clear the password for security/retry
       setForm(prev => ({ ...prev, password: "" })); 
     } finally {
       setLoading(false);
@@ -72,7 +83,7 @@ export default function Login() {
         </form>
 
         <p className="text-center mt-6 text-gray-600 text-sm">
-          Don’t have an account?{" "}
+          Don't have an account?{" "}
           <Link to="/register" className="text-[#087474] font-medium hover:underline">
             Sign Up
           </Link>

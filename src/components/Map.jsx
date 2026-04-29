@@ -1,24 +1,49 @@
 // src/components/Map.jsx
-export default function Map() {
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix Leaflet default marker icon issue
+import L from "leaflet";
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
+
+export default function Map({ properties = [] }) {
+  const defaultCenter = [9.0320, 38.7469]; // Addis Ababa center
+
   return (
-    <div className="bg-gray-200 rounded-2xl overflow-hidden shadow-lg border border-gray-200">
-      <div className="h-[450px] flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-        <div className="text-center p-6">
-          <div className="w-20 h-20 bg-[#087474]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">🗺️</span>
-          </div>
-          <h3 className="text-lg font-bold text-gray-700 mb-1">Rental Properties Map</h3>
-          <p className="text-gray-500 text-sm max-w-xs">
-            Interactive map showing all available rental properties
-          </p>
-          <div className="mt-4 flex gap-2 justify-center">
-            <div className="w-2 h-2 bg-[#087474] rounded-full"></div>
-            <div className="w-2 h-2 bg-[#087474] rounded-full animate-pulse"></div>
-            <div className="w-2 h-2 bg-[#087474] rounded-full"></div>
-          </div>
-          <p className="text-xs text-gray-400 mt-4">Coming Soon</p>
-        </div>
-      </div>
+    <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200 h-[450px]">
+      <MapContainer
+        center={defaultCenter}
+        zoom={13}
+        style={{ height: "100%", width: "100%" }}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        />
+        {properties.map((property) => {
+          if (!property.latitude || !property.longitude) return null;
+          return (
+            <Marker
+              key={property.id}
+              position={[property.latitude, property.longitude]}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <h3 className="font-semibold">{property.title}</h3>
+                  <p className="text-[#087474] font-bold">{property.price} ETB/mo</p>
+                  <p className="text-gray-500">{property.location || property.district}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
     </div>
   );
 }
