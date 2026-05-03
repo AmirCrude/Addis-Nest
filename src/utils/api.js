@@ -81,6 +81,18 @@ export const api = {
   
     return result.data || result;
   },
+
+  // ====================== HOME PAGE ======================
+  getHomepageData: async () => {
+    const response = await fetch(`${API_BASE_URL}`, { // Or `${API_BASE_URL}/` based on your route choice
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return await handleResponse(response);
+  },
+
   
   // ====================== PROPERTIES ======================
   // UPDATED: Now supports query parameters for filtering
@@ -133,6 +145,15 @@ export const api = {
     });
     const data = await handleResponse(response);
     return data.data; // This will be your array of amenities
+  },
+
+  getAllPropertyImages: async (propertyId) => {
+    const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/images`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await handleResponse(response);
+    console.log("Fetched property images:", data.data); // Log the fetched images
+    return data.data; // array of property images
   },
 
   // Get current user profile
