@@ -6,9 +6,7 @@ export default function PropertyCard({ property }) {
     <div className="bg-[#0b3d3d] text-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition group">
       <div className="relative h-40 overflow-hidden">
       <img 
-        src={property.images && property.images.length > 0 
-          ? property.images[0] 
-          : "placeholder.jpg"} 
+        src={property.mainImage} 
         alt={property.title}
       />
 
@@ -37,7 +35,7 @@ export default function PropertyCard({ property }) {
             {property.price} ETB
           </span>
           
-          <Link to={`/property/${property.id}`}>
+          <Link to={`/properties/${property.property_id}`}>
             <button className="bg-[#fbbf24] text-black px-3 py-1.5 rounded-md text-xs font-semibold hover:scale-105 transition">
               View
             </button>

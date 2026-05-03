@@ -123,13 +123,56 @@ export const api = {
     return data; // If it's already an array
   },
 
-  getAllProperties: async () => {
-    const response = await fetch(`${API_BASE_URL}/properties`, {
-      headers: getAuthHeaders(),
-    });
-    const data = await handleResponse(response);
-    return data.data; // array of properties
-  },
+
+getAllProperties: async (filters = {}) => {
+  // 1. Convert the filters object { page: 2, limit: 12 } into a string "page=2&limit=12"
+  const queryString = new URLSearchParams(filters).toString();
+  
+  // 2. Append the query string to the URL
+  const url = queryString 
+    ? `${API_BASE_URL}/properties?${queryString}` 
+    : `${API_BASE_URL}/properties`;
+
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+
+  const resData = await handleResponse(response);
+  
+  // 3. IMPORTANT: Return the WHOLE object, not just data.data
+  // We need resData.totalPages and resData.totalItems for the pagination UI!
+  return resData; 
+},
+
+
+getMyProperties: async () => {
+  const response = await fetch(`${API_BASE_URL}/properties/my`, {
+    headers: getAuthHeaders(), // Ensure this sends the JWT token
+  });
+  return await handleResponse(response);
+},
+
+deleteProperty: async (id) => {
+  const response = await fetch(`${API_BASE_URL}/properties/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  return await handleResponse(response);
+},
+
+updateProperty: async (id, updateData) => {
+  const response = await fetch(`${API_BASE_URL}/properties/${id}`, {
+    method: 'PUT',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updateData),
+  });
+  return await handleResponse(response);
+},
+
+
 
   getPropertyById: async (id) => {
     const response = await fetch(`${API_BASE_URL}/properties/${id}`, {

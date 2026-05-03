@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
+import { jwtDecode } from "jwt-decode";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,25 +19,35 @@ export default function Login() {
     try {
       const response = await api.login(form.email, form.password);
       
-      // Extract user data from response
-      const userData = {
-        email: form.email,
-        role: response.data?.role || localStorage.getItem('role'),
-        firstName: response.data?.firstName || form.email.split('@')[0],
-        id: response.data?.id
-      };
-      
-      // Store in auth context and localStorage
-      login(response.data?.token || localStorage.getItem('token'), userData);
-      navigate("/");
+      if (response.status === 'success' && response.user?.token) {
+        const token = response.user.token;
+        
+        // 1. Decode the token to get the hidden data (id, name, etc.)
+        const decoded = jwtDecode(token);
+    
+        // 2. Build userData using both the response and the decoded token
+        const userData = {
+          email: form.email,
+          role: response.user.role, // "landlord" (already outside)
+          // Extract from decoded token (Check your console log to see exact keys like 'userId' or 'sub')
+          id: decoded.userId, 
+          name: decoded.name,
+        };
+        
+        // 3. Save to Context
+        login(token, userData);
+        navigate("/");
+      }
+    
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Something went wrong");
       console.error("Login error:", err);
       setForm(prev => ({ ...prev, password: "" })); 
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
