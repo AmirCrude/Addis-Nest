@@ -182,6 +182,15 @@ updateProperty: async (id, updateData) => {
     return data.data; // single property object
   },
 
+  getAllAmenities: async () => {
+    const response = await fetch(`${API_BASE_URL}/amenities`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await handleResponse(response);
+    // Based on your backend code: res.status(200).json({ success: true, data: amenities })
+    return data.data; 
+  },
+
   getPropertyAmenities: async (propertyId) => {
     const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/amenities`, {
       headers: getAuthHeaders(),
@@ -214,27 +223,49 @@ updateProperty: async (id, updateData) => {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        // Don't set Content-Type for FormData, browser handles it
+        "Content-Type": "application/json"
       },
-      body: formData,
+      body: JSON.stringify(formData),
     });
     const data = await handleResponse(response);
     return data.data;
   },
 
-  uploadPropertyImage: async (propertyId, file) => {
+// api.js
+
+  addPropertyImages: async (propertyId, images) => {
     const formData = new FormData();
-    formData.append('image', file);
     
+    images.forEach((img) => {
+      if (img.isFile) {
+        // Append actual File objects
+        formData.append("images", img.file); 
+      } else if (img.url) {
+        // Append URL strings (backend must handle both strings and files)
+        formData.append("imageUrls", img.url);
+      }
+    });
+
     const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/images`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        ...getAuthHeaders(),
+        "Authorization": `Bearer ${localStorage.getItem("token")}`, // Ensure token is here
+        // IMPORTANT: Leave Content-Type empty for FormData
       },
       body: formData,
     });
-    const data = await handleResponse(response);
-    return data.data;
+
+    return await handleResponse(response);
+  },
+
+  
+  addPropertyAmenities: async (propertyId, amenityIds) => {
+    const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/amenities`, {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ amenityIds }),
+    });
+    return await handleResponse(response);
   },
 };
 
