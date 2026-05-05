@@ -8,13 +8,11 @@ import api from "../utils/api";
 
 export default function Home() {
   const navigate = useNavigate();
-  // New States
   const [featuredTop, setFeaturedTop] = useState([]);
   const [latestProperties, setLatestProperties] = useState([]);
   const [featuredBottom, setFeaturedBottom] = useState([]);
   const [mapProperties, setMapProperties] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [locations, setLocations] = useState([]);
 
   const [searchFilters, setSearchFilters] = useState({
@@ -24,17 +22,54 @@ export default function Home() {
   });
 
   useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch both in parallel for better performance
+        const [homepageRes, allPropertiesRes] = await Promise.all([
+          api.getHomepageData(),
+          api.getAllPropertiesMap()
+        ]);
+
+        // Set homepage data
+        if (homepageRes.success) {
+          setFeaturedTop(homepageRes.data.featuredTop || []);
+          setLatestProperties(homepageRes.data.latest || []);
+          setFeaturedBottom(homepageRes.data.featuredBottom || []);
+          setLocations(homepageRes.data.locations || []);
+        }
+
+        // Set map data
+        if (allPropertiesRes.success) {
+          // Adjust based on your actual API response structure
+          const allProps = allPropertiesRes.data.data || 
+                          allPropertiesRes.data || 
+                          [];
+          setMapProperties(allProps);
+        }
+
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
+
+
+  useEffect(() => {
     const fetchHomepageContent = async () => {
       try {
         setLoading(true);
         // Single optimized call to our new route
         const res = await api.getHomepageData();
-        
         if (res.success) {
           setFeaturedTop(res.data.featuredTop || []);
           setLatestProperties(res.data.latest || []);
           setFeaturedBottom(res.data.featuredBottom || []);
-          setMapProperties(res.data.latest || []); // Using latest for map for now
 
           setLocations(res.data.locations || []);
         }

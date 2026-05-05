@@ -31,7 +31,7 @@ export default function Properties() {
           page: currentPage,
           limit: itemsPerPage
         };
-        const res = await api.getAllProperties(filters);
+        const res = await api.getProperties(filters);
         
         // Update: res now contains { data, totalPages, totalItems }
         setProperties(res.data.data || []);
@@ -64,26 +64,16 @@ export default function Properties() {
       result = result.filter((p) => p.price <= parseInt(maxPrice));
     }
 
+    if (minPrice) {
+      result = result.filter((p) => p.price >= parseInt(minPrice));
+    }
+
     if (bedrooms) {
       result = result.filter((p) => p.bedrooms >= parseInt(bedrooms));
     }
 
     setFilteredProperties(result);
-  }, [searchTerm, maxPrice, bedrooms, properties]);
-
-  // 2. Pagination Helper
-  const handlePageChange = (direction) => {
-    const newPage = direction === 'next' ? currentPage + 1 : currentPage - 1;
-    setCurrentPage(newPage);
-    
-    // Update URL
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set("page", newPage);
-    setSearchParams(newParams);
-    
-    // Smooth scroll to top for better UX
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, [searchTerm, maxPrice, minPrice, bedrooms, properties]);
 
   const clearFilters = () => {
     setSearchTerm("");

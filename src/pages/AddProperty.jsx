@@ -30,11 +30,27 @@ export default function AddProperty() {
     longitude: 38.7469,
   });
 
-  const [images, setImages] = useState([]); // Stores { file: File, preview: string, url: string, isFile: bool }
-  const [amenitiesList, setAmenitiesList] = useState([]); // From DB
+  const [images, setImages] = useState([]);
+  const [amenitiesList, setAmenitiesList] = useState([]);
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [errors, setErrors] = useState({});
   const [showMap, setShowMap] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState({
+    show: false,
+    type: '', // 'success' or 'error'
+    message: ''
+  });
+
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => {
+        setNotification(prev => ({ ...prev, show: false }));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.show]);
 
   // Fetch amenities on load
   useEffect(() => {
@@ -44,7 +60,6 @@ export default function AddProperty() {
         setAmenitiesList(data);
       } catch (err) {
         console.error("Failed to load amenities:", err);
-        // Optional: Set a default list if the API fails
         setAmenitiesList([]); 
       }
     };
@@ -115,6 +130,8 @@ export default function AddProperty() {
     e.preventDefault();
     if (!validateForm()) return;
   
+    setLoading(true);
+    
     try {
       // 1. Prepare main property data (matching your SQL params)
       const propertyPayload = {
@@ -123,20 +140,19 @@ export default function AddProperty() {
         price: Number(form.price),
         city: form.city,
         district: form.district,
-        property_type: form.type, // Map 'type' to 'property_type'
+        property_type: form.type,
         bedrooms: Number(form.bedrooms),
         bathrooms: Number(form.bathrooms),
-        size: Number(form.area),    // Map 'area' to 'size'
+        size: Number(form.area),
         latitude: form.latitude,
         longitude: form.longitude,
         availability_status: "available"
       };
 
-  
       // 2. Create the Property
       const propertyResponse = await api.createProperty(propertyPayload);
-      const newPropertyId = propertyResponse.property_id; // Use insertId from your backend
-  
+      const newPropertyId = propertyResponse.property_id;
+
       // 3. Handle Amenities
       if (selectedAmenities.length > 0) {
         await api.addPropertyAmenities(newPropertyId, selectedAmenities);
@@ -144,39 +160,140 @@ export default function AddProperty() {
         
       // 4. Handle Images
       if (images.length > 0) {
-        // Pass the full image objects (containing .file and .url)
         await api.addPropertyImages(newPropertyId, images);
       }
 
-  
-      alert("Property created successfully!");
-      navigate("/landlord");
+      // Show success notification
+      setNotification({
+        show: true,
+        type: 'success',
+        message: 'Property created successfully!'
+      });
+
+      // Navigate after short delay to show success message
+      setTimeout(() => {
+        navigate("/landlord");
+      }, 2000);
+      
     } catch (error) {
       console.error("Submission error:", error);
-      alert(error.message || "Failed to create property");
+      setNotification({
+        show: true,
+        type: 'error',
+        message: error.message || "Failed to create property"
+      });
+    } finally {
+      setLoading(false);
     }
   };
   
-    // Remove an image or URL field
-    const removeImage = (index) => {
-      setImages((prev) => prev.filter((_, i) => i !== index));
-    };
+  // Remove an image or URL field
+  const removeImage = (index) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
   
-    // Reorder: Move item in array
-    const moveImage = (index, direction) => {
-      const updated = [...images];
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= updated.length) return;
-  
-      // Swap positions
-      const [movedItem] = updated.splice(index, 1);
-      updated.splice(newIndex, 0, movedItem);
-      setImages(updated);
-    };
-  
+  // Reorder: Move item in array
+  const moveImage = (index, direction) => {
+    const updated = [...images];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= updated.length) return;
+
+    // Swap positions
+    const [movedItem] = updated.splice(index, 1);
+    updated.splice(newIndex, 0, movedItem);
+    setImages(updated);
+  };
 
   return (
     <div className="min-h-screen bg-[#0b3d3d] px-6 py-20">
+      {/* --- NOTIFICATION TOAST --- */}
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-[1200] animate-slide-in-right`}>
+          <div className={`
+            relative overflow-hidden rounded-2xl shadow-2xl border backdrop-blur-sm
+            transition-all duration-300 max-w-md
+            ${notification.type === 'success' 
+              ? 'bg-emerald-50/95 border-emerald-200' 
+              : 'bg-red-50/95 border-red-200'
+            }
+          `}>
+            <div className="flex items-start gap-3 p-4 pr-12">
+              {/* Icon */}
+              <div className={`
+                w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0
+                ${notification.type === 'success' 
+                  ? 'bg-emerald-100 text-emerald-600' 
+                  : 'bg-red-100 text-red-600'
+                }
+              `}>
+                {notification.type === 'success' ? '✅' : '❌'}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h4 className={`font-bold text-sm mb-1 ${
+                  notification.type === 'success' ? 'text-emerald-800' : 'text-red-800'
+                }`}>
+                  {notification.type === 'success' ? 'Success!' : 'Error'}
+                </h4>
+                <p className={`text-sm leading-relaxed ${
+                  notification.type === 'success' ? 'text-emerald-700' : 'text-red-700'
+                }`}>
+                  {notification.message}
+                </p>
+              </div>
+
+              {/* Close button */}
+              <button
+                onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+                className={`absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center
+                  transition-colors text-xs
+                  ${notification.type === 'success' 
+                    ? 'hover:bg-emerald-200 text-emerald-600' 
+                    : 'hover:bg-red-200 text-red-600'
+                  }
+                `}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <div className={`h-1 w-full ${
+              notification.type === 'success' ? 'bg-emerald-200' : 'bg-red-200'
+            }`}>
+              <div 
+                className={`h-full animate-shrink-width ${
+                  notification.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+                }`}
+                style={{ animationDuration: '5s' }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- LOADING OVERLAY --- */}
+      {loading && (
+        <div className="fixed inset-0 z-[1150] flex items-center justify-center">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
+          
+          {/* Loading Card */}
+          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl transform animate-in zoom-in-95 duration-200 border border-gray-100">
+            <div className="text-center">
+              {/* Spinner */}
+              <div className="w-16 h-16 border-4 border-[#fbbf24] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Creating Property</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                Please wait while we save your property details...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 items-start">
         
         {/* LEFT INFO PANEL */}
@@ -329,8 +446,12 @@ export default function AddProperty() {
 
           <textarea name="description" value={form.description} placeholder="Description" onChange={handleChange} className="w-full border p-2 rounded" />
 
-          <button className="w-full bg-[#fbbf24] py-3 rounded font-semibold hover:bg-[#f59e0b] transition">
-            Save Property
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#fbbf24] py-3 rounded font-semibold hover:bg-[#f59e0b] transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Saving...' : 'Save Property'}
           </button>
         </form>
       </div>
