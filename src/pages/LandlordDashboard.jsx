@@ -10,6 +10,7 @@ export default function LandlordDashboard() {
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
@@ -87,6 +88,10 @@ const confirmDelete = async () => {
       p.city?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    if (typeFilter !== "all") {
+      filtered = filtered.filter((p) => p.property_type === typeFilter.toLowerCase());
+    }
+
     setFilteredProperties(filtered);
 
     // Calculate Stats
@@ -96,7 +101,7 @@ const confirmDelete = async () => {
     const totalValue = properties.reduce((sum, p) => sum + parseFloat(p.price || 0), 0);
 
     setStats({ total, available, rented, totalValue });
-  }, [properties, searchTerm]);
+  }, [properties, searchTerm, typeFilter]);
 
 
   const handleToggleStatus = async (property) => {
@@ -131,26 +136,36 @@ const confirmDelete = async () => {
       </div>
 
       {/* STATS CARDS */}
-      <div className="max-w-7xl mx-auto px-6 -mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="max-w-7xl mx-auto px-4 py-8 grid md:grid-cols-4 gap-6">
         <Stat title="Total Listings" value={stats.total} icon="🏘️" />
-        <Stat title="Available" value={stats.available} icon="✅" color="text-green-600" />
-        <Stat title="Rented" value={stats.rented} icon="🔑" color="text-blue-600" />
-        <Stat title="Est. Monthly Revenue" value={`${stats.totalValue.toLocaleString()} ETB`} icon="💰" />
+        <Stat title="Available" value={stats.available} icon="✅" />
+        <Stat title="Rented" value={stats.rented} icon="🔑"/>
+        <Stat title="Est. Monthly Revenue" value={`${stats.totalValue.toLocaleString()} ETB`} icon="💰" color="text-[#fbbf24]" />
       </div>
 
-      {/* SEARCH & FILTERS */}
-      <div className="max-w-7xl mx-auto px-6 mt-12">
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center">
-          <span className="text-gray-400 ml-2">🔍</span>
+      {/* SEARCH & FILTERS */ }
+      <div className="max-w-7xl mx-auto px-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow flex gap-3 flex-wrap">
           <input
-            placeholder="Search your properties by title or city..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-gray-700"
+            placeholder="Search..."
+            className="border p-2 rounded flex-1 outline-none focus:ring-2 focus:ring-[#fbbf24]"
           />
+
+          {["all", "Apartment", "House", "Villa", "Studio"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={`px-3 py-1 rounded transition ${
+                typeFilter === t ? "bg-[#fbbf24] text-black font-semibold" : "bg-gray-200 hover:bg-gray-300"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       </div>
-
       {/* PROPERTY GRID */}
       <div className="max-w-7xl mx-auto px-6 mt-8">
         {filteredProperties.length === 0 ? (
@@ -318,15 +333,14 @@ const confirmDelete = async () => {
     </div>
   );
 }
-
-function Stat({ title, value, icon, color = "text-gray-800" }) {
+function Stat({ title, value, icon, color = "text-white" }) {
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 flex justify-between items-center">
+    <div className="bg-[#0b3d3d] p-6 rounded-lg shadow flex justify-between">
       <div>
-        <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{title}</p>
-        <p className={`text-2xl font-black mt-1 ${color}`}>{value}</p>
+        <p className="text-sm text-white">{title}</p>
+        <p className={`text-xl font-bold ${color}`}>{value}</p>
       </div>
-      <span className="text-3xl bg-gray-50 p-2 rounded-xl">{icon}</span>
+      <span className="text-2xl">{icon}</span>
     </div>
   );
 }

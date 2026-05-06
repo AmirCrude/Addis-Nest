@@ -102,6 +102,8 @@ export const api = {
     if (params.min_price) queryParams.append('min_price', params.min_price);
     if (params.max_price) queryParams.append('max_price', params.max_price);
     if (params.property_type) queryParams.append('property_type', params.property_type);
+    if (params.min_bedrooms) queryParams.append('min_bedrooms', params.min_bedrooms);
+    if (params.search) queryParams.append('search', params.search); // ADD THIS
     
     const queryString = queryParams.toString();
     const url = `${API_BASE_URL}/properties${queryString ? `?${queryString}` : ''}`;
@@ -112,7 +114,7 @@ export const api = {
     
     return await handleResponse(response);
   },
-
+  
   // For ALL properties (map only - no images)
   getAllPropertiesMap: async () => {
     const response = await fetch(`${API_BASE_URL}/properties/map`, {
@@ -246,6 +248,14 @@ export const api = {
     const data = await handleResponse(response);
     return data.data;
   },
+
+  getUserById: async (id) => {
+    const response = await fetch(`${API_BASE_URL}/${id}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await handleResponse(response);
+    return data.data;
+  }
 };
 
 export default api;

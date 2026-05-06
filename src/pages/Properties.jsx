@@ -4,7 +4,6 @@ import api from "../utils/api";
 
 export default function Properties() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   
   
@@ -14,10 +13,13 @@ export default function Properties() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Sync state with URL parameters
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("city") || "");
-  const [minPrice, setMinPrice] = useState(searchParams.get("min_price") || "");
-  const [maxPrice, setMaxPrice] = useState(searchParams.get("max_price") || "");
-  const [bedrooms, setBedrooms] = useState(searchParams.get("min_bedrooms") || "");
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [minPriceInput, setMinPriceInput] = useState("");
+  const [maxPriceInput, setMaxPriceInput] = useState("");
+  const [appliedMinPrice, setAppliedMinPrice] = useState("");
+  const [appliedMaxPrice, setAppliedMaxPrice] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
   
   const [loading, setLoading] = useState(true);
 
@@ -26,17 +28,21 @@ export default function Properties() {
     const fetchProperties = async () => {
       try {
         setLoading(true);
+        
         const filters = {
-          ...Object.fromEntries([...searchParams]),
           page: currentPage,
-          limit: itemsPerPage
+          limit: itemsPerPage,
         };
+        
+        if (appliedSearch) filters.search = appliedSearch;
+        if (appliedMinPrice) filters.min_price = appliedMinPrice;
+        if (appliedMaxPrice) filters.max_price = appliedMaxPrice;
+        if (bedrooms) filters.min_bedrooms = bedrooms;
+        
         const res = await api.getProperties(filters);
         
-        // Update: res now contains { data, totalPages, totalItems }
-        setProperties(res.data.data || []);
         setFilteredProperties(res.data.data || []);
-        setTotalPages(res.data.totalPages || 1); // Set total pages from backend
+        setTotalPages(res.data.totalPages || 1);
       } catch (err) {
         console.error("Failed to fetch properties:", err);
       } finally {
@@ -44,45 +50,18 @@ export default function Properties() {
       }
     };
     fetchProperties();
-  }, [searchParams, currentPage]);
-
-  // Client-side filter
-  useEffect(() => {
-    let result = properties;
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.title?.toLowerCase().includes(term) ||
-          p.city?.toLowerCase().includes(term) ||
-          p.district?.toLowerCase().includes(term)
-      );
-    }
-
-    if (maxPrice) {
-      result = result.filter((p) => p.price <= parseInt(maxPrice));
-    }
-
-    if (minPrice) {
-      result = result.filter((p) => p.price >= parseInt(minPrice));
-    }
-
-    if (bedrooms) {
-      result = result.filter((p) => p.bedrooms >= parseInt(bedrooms));
-    }
-
-    setFilteredProperties(result);
-  }, [searchTerm, maxPrice, minPrice, bedrooms, properties]);
-
+  }, [currentPage, appliedSearch, appliedMinPrice, appliedMaxPrice, bedrooms, searchParams]);
   const clearFilters = () => {
-    setSearchTerm("");
-    setMinPrice("");
-    setMaxPrice("");
+    setSearchInput("");
+    setAppliedSearch("");
+    setMinPriceInput("");
+    setMaxPriceInput("");
+    setAppliedMinPrice("");
+    setAppliedMaxPrice("");
     setBedrooms("");
     setCurrentPage(1);
-    setSearchParams({}); 
   };
+
 
   const goToPage = (page) => {
     if (page < 1 || page > totalPages) return;
@@ -132,24 +111,52 @@ export default function Properties() {
             type="text"
             placeholder="🔍 Search title or city..."
             className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setAppliedSearch(searchInput);
+                setCurrentPage(1);
+              }
+            }}
           />
-          <select
-            className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-          >
-            <option value="">Any Price</option>
-            <option value="10000">Up to 10k ETB</option>
-            <option value="25000">Up to 25k ETB</option>
-            <option value="50000">Up to 50k ETB</option>
-            <option value="100000">Up to 100k ETB</option>
-          </select>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              placeholder="Min Price"
+              className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none w-full"
+              value={minPriceInput}
+              onChange={(e) => setMinPriceInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setAppliedMinPrice(minPriceInput);
+                  setCurrentPage(1);
+                }
+              }}
+            />
+            <span className="text-gray-400">-</span>
+            <input
+              type="number"
+              placeholder="Max Price"
+              className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none w-full"
+              value={maxPriceInput}
+              onChange={(e) => setMaxPriceInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setAppliedMaxPrice(maxPriceInput);
+                  setCurrentPage(1);
+                }
+              }}
+            />
+          </div>
+
           <select
             className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none"
             value={bedrooms}
-            onChange={(e) => setBedrooms(e.target.value)}
+            onChange={(e) => {
+              setBedrooms(e.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="">Any Bedrooms</option>
             <option value="1">1+ Bed</option>
@@ -164,7 +171,6 @@ export default function Properties() {
           </button>
         </div>
       </div>
-
       {/* Grid - with forced layout for better scroll performance */}
       <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 [transform:translateZ(0)]">
         {filteredProperties.map((property) => (
