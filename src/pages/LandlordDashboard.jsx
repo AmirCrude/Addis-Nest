@@ -5,7 +5,7 @@ import api from "../utils/api";
 
 export default function LandlordDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  useAuth();
 
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
@@ -46,10 +46,29 @@ const confirmDelete = async () => {
   const fetchMyProperties = async () => {
     try {
       setLoading(true);
-      // Assuming you have this method in api.js
-      const res = await api.getMyProperties(); 
+      const res = await api.getMyProperties();
       const data = res.data;
-      setProperties(data);
+      
+      // Fetch amenities for all properties in parallel
+      const propertiesWithAmenities = await Promise.all(
+        data.map(async (property) => {
+          try {
+            const amenitiesData = await api.getPropertyAmenities(property.property_id);
+            return {
+              ...property,
+              amenities: amenitiesData || []
+            };
+          } catch (err) {
+            console.error(`Failed to fetch amenities for property ${property.property_id}:`, err);
+            return {
+              ...property,
+              amenities: []
+            };
+          }
+        })
+      );
+      
+      setProperties(propertiesWithAmenities);
     } catch (err) {
       console.error("Failed to load landlord properties:", err);
     } finally {
@@ -79,16 +98,6 @@ const confirmDelete = async () => {
     setStats({ total, available, rented, totalValue });
   }, [properties, searchTerm]);
 
-  // DB ACTIONS
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this listing?")) return;
-    try {
-      await api.deleteProperty(id);
-      setProperties(properties.filter((p) => p.property_id !== id));
-    } catch (err) {
-      alert("Failed to delete property");
-    }
-  };
 
   const handleToggleStatus = async (property) => {
     const newStatus = property.availability_status === "rented" ? "available" : "rented";
@@ -196,14 +205,27 @@ const confirmDelete = async () => {
           <span className="flex flex-col items-center"><b>{p.size}</b> m²</span>
         </div>
 
-        {/* AMENITIES PLACEHOLDER (Future Feature) */}
+        {/* AMENITIES */}
         <div className="mt-3 flex flex-wrap gap-1 min-h-[20px]">
-          <span className="text-[9px] text-white/30 italic">Amenities loading...</span>
-          {/* Later you will map amenities here: 
-              p.amenities?.map(a => <span className="bg-white/5 px-2 py-0.5 rounded">wifi</span>) 
-          */}
+          {p.amenities && p.amenities.length > 0 ? (
+            p.amenities.slice(0, 3).map((amenity, idx) => (
+              <span 
+                key={idx}
+                className="bg-white/10 text-white/70 text-[9px] px-2 py-0.5 rounded-full"
+              >
+                {amenity.amenity_name}
+              </span>
+            ))
+          ) : (
+            <span className="text-[9px] text-white/30 italic">No amenities</span>
+          )}
+          {p.amenities && p.amenities.length > 3 && (
+            <span className="bg-white/5 text-white/40 text-[9px] px-2 py-0.5 rounded-full">
+              +{p.amenities.length - 3} more
+            </span>
+          )}
         </div>
-
+        
         {/* PRICE & ACTIONS ROW */}
         <div className="mt-auto pt-4 flex flex-col gap-4">
           <div className="flex justify-between items-center">

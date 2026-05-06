@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import About from './pages/About';
 import LandlordDashboard from './pages/LandlordDashboard';
 import AddProperty from './pages/AddProperty';
+import EditProperty from './pages/EditProperty';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/landlord" element={<LandlordDashboard />} />
           <Route path="/add-property" element={<AddProperty />} />
+          <Route path="/edit-property/:id" element={<EditProperty />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

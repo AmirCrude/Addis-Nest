@@ -195,6 +195,14 @@ export const api = {
     return await handleResponse(response);
   },
 
+  deletePropertyImage: async (propertyId, imageId) => {
+    const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/images/${imageId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
   // ====================== AMENITIES ======================
   getAllAmenities: async () => {
     const response = await fetch(`${API_BASE_URL}/amenities`, {
@@ -210,6 +218,15 @@ export const api = {
     });
     const data = await handleResponse(response);
     return data.data;
+  },
+
+  updatePropertyAmenities: async (propertyId, amenityIds) => {
+    const response = await fetch(`${API_BASE_URL}/properties/${propertyId}/amenities`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ amenityIds }),
+    });
+    return await handleResponse(response);
   },
 
   addPropertyAmenities: async (propertyId, amenityIds) => {
