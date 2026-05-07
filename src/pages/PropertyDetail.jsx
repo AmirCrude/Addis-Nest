@@ -38,8 +38,8 @@ export default function PropertyDetail() {
         setProperty({
           ...propertyData,
           landlord_name: landlordData?.name || "Hello",
-          landlord_email: landlordData?.email || "email this is",
-          landlord_phone: landlordData?.phone_number || "phone this is"  
+          landlord_email: landlordData?.email || "this is email",
+          landlord_phone: landlordData?.phone_number || "this is phone number"  
         });
         setAmenities(amenitiesData || []);
         setImages(imagesData || []);

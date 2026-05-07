@@ -250,7 +250,7 @@ export const api = {
   },
 
   getUserById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
       headers: getAuthHeaders(),
     });
     const data = await handleResponse(response);
