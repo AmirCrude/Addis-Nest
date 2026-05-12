@@ -44,39 +44,48 @@ const confirmDelete = async () => {
 
 
   // Fetch only this landlord's properties from DB
+
   const fetchMyProperties = async () => {
     try {
       setLoading(true);
       const res = await api.getMyProperties();
       const data = res.data;
       
-      // Fetch amenities for all properties in parallel
-      const propertiesWithAmenities = await Promise.all(
+      // Fetch amenities AND images for all properties in parallel
+      const propertiesWithDetails = await Promise.all(
         data.map(async (property) => {
           try {
-            const amenitiesData = await api.getPropertyAmenities(property.property_id);
+            // Fetch amenities and images in parallel
+            const [amenitiesData, imagesData] = await Promise.all([
+              api.getPropertyAmenities(property.property_id),
+              api.getAllPropertyImages(property.property_id)
+            ]);
+
+            console.log("images: ", imagesData)
+            
             return {
               ...property,
-              amenities: amenitiesData || []
+              amenities: amenitiesData || [],
+              images: imagesData || []
             };
           } catch (err) {
-            console.error(`Failed to fetch amenities for property ${property.property_id}:`, err);
+            console.error(`Failed to fetch details for property ${property.property_id}:`, err);
             return {
               ...property,
-              amenities: []
+              amenities: [],
+              images: []
             };
           }
         })
       );
       
-      setProperties(propertiesWithAmenities);
+      setProperties(propertiesWithDetails);
     } catch (err) {
       console.error("Failed to load landlord properties:", err);
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchMyProperties();
   }, []);
@@ -182,12 +191,15 @@ const confirmDelete = async () => {
     >
       {/* IMAGE SECTION */}
       <div className="relative h-48 overflow-hidden bg-gray-800">
-        <img
-          src={p.mainImage || "https://placeholder.com"}
-          alt={p.title}
-          loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-        />
+      <img
+        src={p.images?.[0]?.image_url || p.mainImage || `https://picsum.photos/seed/${p.property_id}/800/600`}
+        alt={p.title}
+        loading="lazy"
+        className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+        onError={(e) => {
+          e.target.src = `https://picsum.photos/seed/${p.property_id}/800/600`;
+        }}
+      />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
         
         {/* Status Badge */}

@@ -1,12 +1,11 @@
 import { useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
 // Helper component to ensure all markers are visible
 function FitBounds({ properties }) {
-
-  
   const map = useMap();
 
   useEffect(() => {
@@ -24,7 +23,6 @@ function FitBounds({ properties }) {
         const lng = parseFloat(p.longitude);
         return [lat, lng];
       });
-
 
     if (validPoints.length === 1) {
       // If only one point, center on it with a fixed zoom
@@ -48,8 +46,105 @@ function FitBounds({ properties }) {
   return null;
 }
 
-export default function Map({ properties = [] }) {
+// Component for each property popup
+function PropertyPopup({ property }) {
+  const navigate = useNavigate();
 
+  const handleViewDetails = () => {
+    navigate(`/properties/${property.property_id}`);
+  };
+
+  return (
+    <div className="text-sm min-w-[220px] max-w-[280px] p-2">
+      {/* Property Image */}
+      {property.images && property.images[0] && (
+        <div className="mb-3 rounded-lg overflow-hidden h-32">
+          <img 
+            src={property.images[0]} 
+            alt={property.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+      
+      {/* Title */}
+      <h3 className="font-bold text-gray-800 text-base mb-2 line-clamp-2">
+        {property.title}
+      </h3>
+      
+      {/* Location */}
+      <div className="flex items-center gap-1 text-gray-600 mb-2">
+        <span>📍</span>
+        <p className="text-xs">
+          {property.district && property.city 
+            ? `${property.district}, ${property.city}`
+            : property.district || property.city || "Location not specified"}
+        </p>
+      </div>
+      
+      {/* Price */}
+      <div className="mb-3">
+        <p className="text-emerald-700 font-bold text-lg">
+          {Number(property.price).toLocaleString()} 
+          <span className="text-xs font-normal"> ETB/mo</span>
+        </p>
+      </div>
+      
+      {/* Property Details */}
+      <div className="flex justify-between items-center bg-gray-50 rounded-lg p-2 mb-3">
+        {property.bedrooms && (
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-500">Beds</span>
+            <span className="font-semibold text-gray-800">{property.bedrooms}</span>
+          </div>
+        )}
+        {property.bathrooms && (
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-500">Baths</span>
+            <span className="font-semibold text-gray-800">{property.bathrooms}</span>
+          </div>
+        )}
+        {property.size && (
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-500">Size</span>
+            <span className="font-semibold text-gray-800">{property.size} m²</span>
+          </div>
+        )}
+        {property.property_type && (
+          <div className="flex flex-col items-center">
+            <span className="text-xs text-gray-500">Type</span>
+            <span className="font-semibold text-gray-800 capitalize">{property.property_type}</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Availability Status */}
+      {property.availability_status && (
+        <div className="mb-3">
+          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium
+            ${property.availability_status === 'available' 
+              ? 'bg-green-100 text-green-700' 
+              : property.availability_status === 'rented'
+              ? 'bg-red-100 text-red-700'
+              : 'bg-yellow-100 text-yellow-700'
+            }`}>
+            {property.availability_status.charAt(0).toUpperCase() + property.availability_status.slice(1)}
+          </span>
+        </div>
+      )}
+      
+      {/* View Details Button */}
+      <button
+        onClick={handleViewDetails}
+        className="w-full bg-[#087474] text-white py-2 px-4 rounded-lg font-medium hover:bg-[#066565] transition-all active:scale-95 text-sm"
+      >
+        View Full Details →
+      </button>
+    </div>
+  );
+}
+
+export default function Map({ properties = [] }) {
   const defaultCenter = [9.032, 38.7469]; // Addis Ababa
 
   // Create icon inside component to ensure Leaflet is loaded
@@ -77,12 +172,10 @@ export default function Map({ properties = [] }) {
 
   // Filter valid properties and log issues
   const validProperties = useMemo(() => {
-    
     const valid = properties.filter((property, index) => {
       const lat = parseFloat(property.latitude);
       const lng = parseFloat(property.longitude);
       
-      // Log problematic properties
       if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) {
         console.warn(`Invalid property at index ${index}:`, {
           id: property.id || property.property_id,
@@ -149,16 +242,8 @@ export default function Map({ properties = [] }) {
               position={[lat, lng]}
               icon={customIcon}
             >
-              <Popup>
-                <div className="text-sm min-w-[150px]">
-                  <h3 className="font-bold text-gray-800">{property.title}</h3>
-                  <p className="text-emerald-700 font-semibold">
-                    {property.price?.toLocaleString()} ETB/mo
-                  </p>
-                  <p className="text-gray-500 text-xs">
-                    {property.district || property.city}
-                  </p>
-                </div>
+              <Popup maxWidth={300} minWidth={250}>
+                <PropertyPopup property={property} />
               </Popup>
             </Marker>
           );

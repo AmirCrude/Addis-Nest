@@ -8,51 +8,40 @@ import api from "../utils/api.js"
 // Fix for default Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cloudflare.com",
-  iconUrl: "https://cloudflare.com",
-  shadowUrl: "https://cloudflare.com",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
 
 export default function AddProperty() {
   const navigate = useNavigate();
-
   const [form, setForm] = useState({
     title: "",
-    city: "",
+    description: "",
     district: "",
     price: "",
     bedrooms: "",
     bathrooms: "",
     area: "",
-    description: "",
     type: "Apartment",
-    latitude: 9.0320,
-    longitude: 38.7469,
+    latitude: "9.0320",
+    longitude: "38.7469",
   });
-
   const [images, setImages] = useState([]);
   const [amenitiesList, setAmenitiesList] = useState([]);
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [errors, setErrors] = useState({});
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [notification, setNotification] = useState({
-    show: false,
-    type: '', // 'success' or 'error'
-    message: ''
-  });
+  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
 
-  // Auto-hide notification after 5 seconds
   useEffect(() => {
     if (notification.show) {
-      const timer = setTimeout(() => {
-        setNotification(prev => ({ ...prev, show: false }));
-      }, 5000);
+      const timer = setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 5000);
       return () => clearTimeout(timer);
     }
   }, [notification.show]);
 
-  // Fetch amenities on load
   useEffect(() => {
     const fetchAmenities = async () => {
       try {
@@ -60,10 +49,9 @@ export default function AddProperty() {
         setAmenitiesList(data);
       } catch (err) {
         console.error("Failed to load amenities:", err);
-        setAmenitiesList([]); 
+        setAmenitiesList([]);
       }
     };
-  
     fetchAmenities();
   }, []);
 
@@ -73,7 +61,6 @@ export default function AddProperty() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // Map Click Handler
   function LocationMarker() {
     useMapEvents({
       click(e) {
@@ -86,374 +73,339 @@ export default function AddProperty() {
     });
     return <Marker position={[form.latitude, form.longitude]} />;
   }
-
-  // Image Handlers
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     const newImages = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      isFile: true
+      file: file,                          // The actual File object
+      preview: URL.createObjectURL(file),  // Preview URL for display
+      url: URL.createObjectURL(file),      // URL for fallback
+      isFile: true                         // Flag for the API
     }));
     setImages((prev) => [...prev, ...newImages]);
   };
 
-  const addImageUrlField = () => {
-    setImages((prev) => [...prev, { url: "", isFile: false }]);
-  };
-
-  const handleUrlChange = (index, value) => {
-    const updated = [...images];
-    updated[index].url = value;
-    setImages(updated);
-  };
-
-  // Amenity Toggle
   const toggleAmenity = (id) => {
     setSelectedAmenities((prev) =>
       prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
     );
   };
 
+  const handleTypeChange = (e) => {
+    const newType = e.target.value;
+    setForm(prev => ({
+      ...prev,
+      type: newType,
+      bedrooms: newType === 'Commercial' ? '' : prev.bedrooms,
+      bathrooms: newType === 'Commercial' ? '' : prev.bathrooms,
+    }));
+  };
+
   const validateForm = () => {
     const newErrors = {};
     if (!form.title.trim()) newErrors.title = "Required";
-    if (!form.city.trim()) newErrors.city = "Required";
     if (!form.district.trim()) newErrors.district = "Required";
     if (!form.price) newErrors.price = "Required";
+    if (form.type !== 'Commercial') {
+      if (!form.bedrooms) newErrors.bedrooms = "Required";
+      if (!form.bathrooms) newErrors.bathrooms = "Required";
+    }
     if (images.length === 0) newErrors.images = "At least one image required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-  
     setLoading(true);
-    
     try {
-      // 1. Prepare main property data (matching your SQL params)
       const propertyPayload = {
-        title: form.title,
-        description: form.description,
-        price: Number(form.price),
-        city: form.city,
-        district: form.district,
-        property_type: form.type,
-        bedrooms: Number(form.bedrooms),
-        bathrooms: Number(form.bathrooms),
-        size: Number(form.area),
-        latitude: form.latitude,
-        longitude: form.longitude,
-        availability_status: "available"
+        title: form.title, description: form.description, price: Number(form.price),
+        city: "Addis Ababa", district: form.district, property_type: form.type,
+        size: Number(form.area), latitude: parseFloat(form.latitude),
+        longitude: parseFloat(form.longitude), availability_status: "available"
       };
-
-      // 2. Create the Property
+      if (form.type !== 'Commercial') {
+        propertyPayload.bedrooms = Number(form.bedrooms);
+        propertyPayload.bathrooms = Number(form.bathrooms);
+      }
+      if (form.type === 'Commercial' && form.parkingSpaces) {
+        propertyPayload.parking_spaces = Number(form.parkingSpaces);
+      }
+      
       const propertyResponse = await api.createProperty(propertyPayload);
       const newPropertyId = propertyResponse.property_id;
-
-      // 3. Handle Amenities
-      if (selectedAmenities.length > 0) {
-        await api.addPropertyAmenities(newPropertyId, selectedAmenities);
-      }
-        
-      // 4. Handle Images
+      if (selectedAmenities.length > 0) await api.addPropertyAmenities(newPropertyId, selectedAmenities);
       if (images.length > 0) {
-        await api.addPropertyImages(newPropertyId, images);
+        const formattedImages = images.map(img => ({
+          file: img.file || null,
+          url: img.url || null,
+          isFile: !!img.file
+        }));
+        await api.addPropertyImages(newPropertyId, formattedImages);
       }
-
-      // Show success notification
-      setNotification({
-        show: true,
-        type: 'success',
-        message: 'Property created successfully!'
-      });
-
-      // Navigate after short delay to show success message
-      setTimeout(() => {
-        navigate("/landlord");
-      }, 2000);
-      
+      setNotification({ show: true, type: 'success', message: 'Property created successfully!' });
+      setTimeout(() => navigate("/landlord"), 2000);
     } catch (error) {
       console.error("Submission error:", error);
-      setNotification({
-        show: true,
-        type: 'error',
-        message: error.message || "Failed to create property"
-      });
+      setNotification({ show: true, type: 'error', message: error.message || "Failed to create property" });
     } finally {
       setLoading(false);
     }
   };
-  
-  // Remove an image or URL field
+
   const removeImage = (index) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
-  
-  // Reorder: Move item in array
-  const moveImage = (index, direction) => {
-    const updated = [...images];
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= updated.length) return;
 
-    // Swap positions
-    const [movedItem] = updated.splice(index, 1);
-    updated.splice(newIndex, 0, movedItem);
-    setImages(updated);
-  };
+  const inputBase = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-[#087474] focus:border-transparent outline-none transition-all placeholder:text-gray-400";
+  const labelBase = "block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5";
 
   return (
-    <div className="min-h-screen bg-[#0b3d3d] px-6 py-20">
-      {/* --- NOTIFICATION TOAST --- */}
+    <div className="min-h-screen bg-[#f8fafb]">
+      {/* Notification Toast */}
       {notification.show && (
-        <div className={`fixed top-4 right-4 z-[1200] animate-slide-in-right`}>
-          <div className={`
-            relative overflow-hidden rounded-2xl shadow-2xl border backdrop-blur-sm
-            transition-all duration-300 max-w-md
-            ${notification.type === 'success' 
-              ? 'bg-emerald-50/95 border-emerald-200' 
-              : 'bg-red-50/95 border-red-200'
-            }
-          `}>
+        <div className="fixed top-24 right-4 z-[1200] animate-slide-in-right">
+          <div className={`rounded-2xl shadow-2xl border backdrop-blur-sm max-w-md ${notification.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
             <div className="flex items-start gap-3 p-4 pr-12">
-              {/* Icon */}
-              <div className={`
-                w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0
-                ${notification.type === 'success' 
-                  ? 'bg-emerald-100 text-emerald-600' 
-                  : 'bg-red-100 text-red-600'
-                }
-              `}>
-                {notification.type === 'success' ? '✅' : '❌'}
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${notification.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                {notification.type === 'success' ? '✓' : '✗'}
               </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <h4 className={`font-bold text-sm mb-1 ${
-                  notification.type === 'success' ? 'text-emerald-800' : 'text-red-800'
-                }`}>
-                  {notification.type === 'success' ? 'Success!' : 'Error'}
+              <div>
+                <h4 className={`font-bold text-sm mb-0.5 ${notification.type === 'success' ? 'text-emerald-800' : 'text-red-800'}`}>
+                  {notification.type === 'success' ? 'Success' : 'Error'}
                 </h4>
-                <p className={`text-sm leading-relaxed ${
-                  notification.type === 'success' ? 'text-emerald-700' : 'text-red-700'
-                }`}>
-                  {notification.message}
-                </p>
+                <p className={`text-sm ${notification.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>{notification.message}</p>
               </div>
-
-              {/* Close button */}
-              <button
-                onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-                className={`absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center
-                  transition-colors text-xs
-                  ${notification.type === 'success' 
-                    ? 'hover:bg-emerald-200 text-emerald-600' 
-                    : 'hover:bg-red-200 text-red-600'
-                  }
-                `}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Progress bar */}
-            <div className={`h-1 w-full ${
-              notification.type === 'success' ? 'bg-emerald-200' : 'bg-red-200'
-            }`}>
-              <div 
-                className={`h-full animate-shrink-width ${
-                  notification.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
-                }`}
-                style={{ animationDuration: '5s' }}
-              ></div>
+              <button onClick={() => setNotification(prev => ({ ...prev, show: false }))} className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-black/10">✕</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- LOADING OVERLAY --- */}
+      {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 z-[1150] flex items-center justify-center">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-          
-          {/* Loading Card */}
-          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl transform animate-in zoom-in-95 duration-200 border border-gray-100">
-            <div className="text-center">
-              {/* Spinner */}
-              <div className="w-16 h-16 border-4 border-[#fbbf24] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Creating Property</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">
-                Please wait while we save your property details...
-              </p>
-            </div>
+        <div className="fixed inset-0 z-[1150] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
+            <div className="w-16 h-16 border-4 border-[#fbbf24] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Creating Property</h3>
+            <p className="text-gray-500 text-sm">Saving your property details...</p>
           </div>
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 items-start">
-        
-        {/* LEFT INFO PANEL */}
-        <div className="text-white space-y-6 hidden md:block pt-8">
-          <h1 className="text-4xl font-bold leading-tight">Add Your Property 🚀</h1>
-          <p className="text-white/70">List your property in seconds and reach real tenants faster. 
-          Make sure your details are clear and attractive.</p>
-          <div className="space-y-3 text-white/80">
-            <p>✔ High quality images = more bookings</p>
-            <p>✔ Correct location increases visibility</p>
-            <p>✔ Clear pricing builds trust</p>
-          </div>
+      {/* Page Content */}
+      <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
           
-          <div className="bg-white/10 p-4 rounded-xl">
-            <p className="text-sm text-white/70">
-              Tip: Properties with images get 3x more attention.
-            </p>
-          </div>
-        </div>
-
-        {/* FORM CARD */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-12 mt-4 space-y-4">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Property Details</h2>
-
-          <input name="title" value={form.title} placeholder="Title" onChange={handleChange} className="w-full border p-2 rounded" />
-          {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
-
-          {/* CITY & DISTRICT */}
-          <div className="grid grid-cols-2 gap-2">
-            <input name="city" value={form.city} placeholder="City" onChange={handleChange} className="border p-2 rounded" />
-            <input name="district" value={form.district} placeholder="District" onChange={handleChange} className="border p-2 rounded" />
-          </div>
-
-          {/* MAP SECTION */}
-          <div className="space-y-2">
-            <button type="button" onClick={() => setShowMap(!showMap)} className="w-full bg-gray-100 py-2 rounded border hover:bg-gray-200 transition">
-              {showMap ? "Close Map" : "🗺️ Select Location on Map"}
-            </button>
-            {showMap && (
-              <div className="h-64 w-full rounded-xl overflow-hidden border-2 border-gray-200">
-                <MapContainer center={[form.latitude, form.longitude]} zoom={13} style={{ height: "100%", width: "100%" }}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <LocationMarker />
-                </MapContainer>
+          {/* Header with background accent */}
+          <div className="bg-gradient-to-r from-[#0b3d3d] to-[#087474] rounded-2xl p-8 mb-8 text-white shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">
+                🏠
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <input name="latitude" value={form.latitude} readOnly className="bg-gray-50 border p-2 rounded text-xs" placeholder="Lat" />
-              <input name="longitude" value={form.longitude} readOnly className="bg-gray-50 border p-2 rounded text-xs" placeholder="Lng" />
+              <div>
+                <h1 className="text-2xl font-bold">List Your Property</h1>
+                <p className="text-white/70 text-sm mt-1">Fill in the details below to reach thousands of potential tenants</p>
+              </div>
             </div>
           </div>
 
-          {/* AMENITIES */}
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-gray-700">Amenities</p>
-            <div className="flex flex-wrap gap-2">
-              {amenitiesList.map((amenity) => (
-                <button
-                  key={amenity.amenity_id}
-                  type="button"
-                  onClick={() => toggleAmenity(amenity.amenity_id)}
-                  className={`px-3 py-1 rounded-full text-xs border transition ${
-                    selectedAmenities.includes(amenity.amenity_id) 
-                    ? "bg-[#fbbf24] border-[#fbbf24] font-bold" 
-                    : "bg-white border-gray-300 text-gray-600"
-                  }`}
-                >
-                  {amenity.amenity_name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* PRICE */}
-          <input name="price" type="number" value={form.price} placeholder="Price" onChange={handleChange} className="w-full border p-2 rounded" />
-  
-          {/* MULTI-IMAGE UPLOAD SECTION */}
-          <div className="space-y-2 border-t pt-4">
-            <p className="text-sm font-semibold text-gray-700">Images (Drag/Order matters)</p>
-            <div className="flex gap-2">
-              <input type="file" multiple onChange={handleFileChange} className="text-xs flex-1" />
-              <button type="button" onClick={addImageUrlField} className="text-xs bg-gray-100 px-2 py-1 rounded border hover:bg-gray-200">
-                + Add URL
-              </button>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
             
-            <div className="grid grid-cols-3 gap-3 mt-2">
-              {images.map((img, idx) => (
-                <div key={idx} className="relative group h-24 border-2 border-dashed border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                  
-                  {/* DELETE BUTTON (X) */}
-                  <button
-                    type="button"
-                    onClick={() => removeImage(idx)}
-                    className="absolute top-1 right-1 z-10 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md hover:bg-red-600"
-                  >
-                    ✕
-                  </button>
-
-                  {/* REORDER CONTROLS (Small arrows) */}
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      type="button" 
-                      onClick={() => moveImage(idx, -1)} 
-                      className="bg-black/50 text-white px-1 rounded text-[10px]"
-                    >
-                      ◀
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => moveImage(idx, 1)} 
-                      className="bg-black/50 text-white px-1 rounded text-[10px]"
-                    >
-                      ▶
-                    </button>
-                  </div>
-
-                  {/* CONTENT */}
-                  {img.isFile ? (
-                    <img src={img.preview} alt="preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex items-center h-full p-1">
-                      <input 
-                        placeholder="Paste URL" 
-                        className="w-full text-[10px] bg-transparent outline-none text-center" 
-                        value={img.url}
-                        onChange={(e) => handleUrlChange(idx, e.target.value)}
-                      />
+            {/* TWO COLUMN LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+              
+              {/* LEFT COLUMN - Takes 3/5 */}
+              <div className="lg:col-span-3 space-y-5">
+                
+                {/* Basic Information Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#0b3d3d] rounded-lg flex items-center justify-center text-[#fbbf24] text-sm font-bold">1</div>
+                      <h2 className="font-semibold text-gray-800">Basic Information</h2>
                     </div>
-                  )}
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className={labelBase}>Property Title</label>
+                        <input name="title" value={form.title} placeholder="e.g., Modern 2BR Apartment in Bole" onChange={handleChange} className={inputBase} />
+                        {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+                      </div>
+                      <div>
+                        <label className={labelBase}>Property Type</label>
+                        <select name="type" value={form.type} onChange={handleTypeChange} className={inputBase}>
+                          <option value="Apartment">Apartment</option>
+                          <option value="House">House</option>
+                          <option value="Villa">Villa</option>
+                          <option value="Studio">Studio</option>
+                          <option value="Commercial">Commercial</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelBase}>Monthly Rent (ETB)</label>
+                        <input name="price" type="number" value={form.price} placeholder="0" onChange={handleChange} className={inputBase} />
+                        {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelBase}>Description</label>
+                      <textarea name="description" value={form.description} placeholder="Describe your property in detail..." onChange={handleChange} rows={3} className={`${inputBase} resize-none`} />
+                    </div>
+                  </div>
                 </div>
-              ))}
+                {/* Property Details Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#0b3d3d] rounded-lg flex items-center justify-center text-[#fbbf24] text-sm font-bold">2</div>
+                      <h2 className="font-semibold text-gray-800">Property Details</h2>
+                    </div>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {form.type !== 'Commercial' ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className={labelBase}>Bedrooms</label>
+                          <input name="bedrooms" type="number" value={form.bedrooms} placeholder="Beds" onChange={handleChange} className={inputBase} />
+                          {errors.bedrooms && <p className="text-red-500 text-xs mt-1">{errors.bedrooms}</p>}
+                        </div>
+                        <div>
+                          <label className={labelBase}>Bathrooms</label>
+                          <input name="bathrooms" type="number" value={form.bathrooms} placeholder="Baths" onChange={handleChange} className={inputBase} />
+                          {errors.bathrooms && <p className="text-red-500 text-xs mt-1">{errors.bathrooms}</p>}
+                        </div>
+                        <div>
+                          <label className={labelBase}>Area (m²)</label>
+                          <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className={labelBase}>Area (m²)</label>
+                          <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
+                        </div>
+                        <div>
+                          <label className={labelBase}>Parking</label>
+                          <input name="parkingSpaces" type="number" value={form.parkingSpaces} placeholder="Spots" onChange={handleChange} className={inputBase} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Amenities Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#0b3d3d] rounded-lg flex items-center justify-center text-[#fbbf24] text-sm font-bold">3</div>
+                      <h2 className="font-semibold text-gray-800">Amenities</h2>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <div className="flex flex-wrap gap-2">
+                      {amenitiesList.map((amenity) => (
+                        <button
+                          key={amenity.amenity_id}
+                          type="button"
+                          onClick={() => toggleAmenity(amenity.amenity_id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            selectedAmenities.includes(amenity.amenity_id) 
+                            ? "bg-[#0b3d3d] text-[#fbbf24] shadow-sm" 
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          {selectedAmenities.includes(amenity.amenity_id) && "✓ "}
+                          {amenity.amenity_name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN - Takes 2/5 */}
+              <div className="lg:col-span-2 space-y-5">
+                
+                {/* Location Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#0b3d3d] rounded-lg flex items-center justify-center text-[#fbbf24] text-sm font-bold">4</div>
+                      <h2 className="font-semibold text-gray-800">Location</h2>
+                    </div>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className={labelBase}>Sub City</label>
+                      <input name="district" value={form.district} placeholder="Bole, Kazanchis, CMC..." onChange={handleChange} className={inputBase} />
+                      {errors.district && <p className="text-red-500 text-xs mt-1">{errors.district}</p>}
+                    </div>
+                    <div>
+                      <label className={labelBase}>Coordinates</label>
+                      <div className="flex gap-2">
+                        <input name="latitude" value={form.latitude} placeholder="Latitude" onChange={handleChange} className={inputBase} />
+                        <input name="longitude" value={form.longitude} placeholder="Longitude" onChange={handleChange} className={inputBase} />
+                        <button type="button" onClick={() => setShowMap(!showMap)} className="px-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition flex items-center justify-center flex-shrink-0" title="Open map">
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </button>
+                      </div>
+                      {showMap && (
+                        <div className="h-48 rounded-xl overflow-hidden border-2 border-gray-200 mt-3">
+                          <MapContainer center={[parseFloat(form.latitude), parseFloat(form.longitude)]} zoom={13} style={{ height: "100%", width: "100%" }}>
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <LocationMarker />
+                          </MapContainer>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Images Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#0b3d3d] rounded-lg flex items-center justify-center text-[#fbbf24] text-sm font-bold">5</div>
+                      <h2 className="font-semibold text-gray-800">Images</h2>
+                      <span className="text-xs text-red-400 ml-auto">* Required</span>
+                    </div>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#087474] hover:bg-gray-50 transition group">
+                      <svg className="w-8 h-8 text-gray-400 group-hover:text-[#087474] mb-2 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <p className="text-sm text-gray-500">Click to upload</p>
+                      <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP</p>
+                      <input type="file" multiple onChange={handleFileChange} className="hidden" accept="image/*" />
+                    </label>
+                    {images.length > 0 && (
+                      <div className="grid grid-cols-4 gap-2">
+                        {images.map((img, idx) => (
+                          <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100">
+                            <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition">✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {errors.images && <p className="text-red-500 text-xs">{errors.images}</p>}
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button type="submit" disabled={loading} className="w-full bg-[#0b3d3d] text-white py-3.5 rounded-xl font-semibold hover:bg-[#087474] transition-all disabled:opacity-50 shadow-lg shadow-[#0b3d3d]/20 hover:shadow-xl hover:shadow-[#0b3d3d]/30 active:scale-[0.98]">
+                  {loading ? 'Creating Property...' : 'Create Property'}
+                </button>
+              </div>
             </div>
-            {errors.images && <p className="text-red-500 text-xs">{errors.images}</p>}
-          </div>
-
-          {/* GRID (Beds, Baths, Area) */}
-          <div className="grid grid-cols-3 gap-2">
-            <input name="bedrooms" value={form.bedrooms} placeholder="Beds" onChange={handleChange} className="border p-2 rounded" />
-            <input name="bathrooms" value={form.bathrooms} placeholder="Baths" onChange={handleChange} className="border p-2 rounded" />
-            <input name="area" value={form.area} placeholder="Area (sqm)" onChange={handleChange} className="border p-2 rounded" />
-          </div>
-
-          <select name="type" value={form.type} onChange={handleChange} className="w-full border p-2 rounded">
-            <option>Apartment</option>
-            <option>House</option>
-            <option>Villa</option>
-            <option>Studio</option>
-          </select>
-
-          <textarea name="description" value={form.description} placeholder="Description" onChange={handleChange} className="w-full border p-2 rounded" />
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#fbbf24] py-3 rounded font-semibold hover:bg-[#f59e0b] transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Saving...' : 'Save Property'}
-          </button>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

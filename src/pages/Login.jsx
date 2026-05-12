@@ -28,7 +28,7 @@ export default function Login() {
         // 2. Build userData using both the response and the decoded token
         const userData = {
           email: form.email,
-          role: response.user.role, // "landlord" (already outside)
+          role: response.user.role, // "landlord" or "tenant" (already outside the JWT)
           // Extract from decoded token (Check your console log to see exact keys like 'userId' or 'sub')
           id: decoded.userId, 
           name: decoded.name,
@@ -36,7 +36,16 @@ export default function Login() {
         
         // 3. Save to Context
         login(token, userData);
-        navigate("/");
+        
+        // 4. Navigate based on role
+        if (response.user.role === 'landlord') {
+          navigate("/landlord");
+        } else if (response.user.role === 'tenant') {
+          navigate("/tenant-dashboard");
+        } else {
+          // Fallback for any other role
+          navigate("/");
+        }
       }
     
     } catch (err) {

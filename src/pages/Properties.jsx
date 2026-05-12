@@ -1,3 +1,4 @@
+// src/pages/Properties.jsx
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom"; 
 import api from "../utils/api";
@@ -6,22 +7,37 @@ export default function Properties() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filteredProperties, setFilteredProperties] = useState([]);
   
-  
   // 1. Pagination State
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page")) || 1);
   const itemsPerPage = 12;
   const [totalPages, setTotalPages] = useState(1);
 
-  // Sync state with URL parameters
-  const [searchInput, setSearchInput] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [minPriceInput, setMinPriceInput] = useState("");
-  const [maxPriceInput, setMaxPriceInput] = useState("");
-  const [appliedMinPrice, setAppliedMinPrice] = useState("");
-  const [appliedMaxPrice, setAppliedMaxPrice] = useState("");
-  const [bedrooms, setBedrooms] = useState("");
+  // Initialize state from URL parameters (from home page search)
+  const [searchInput, setSearchInput] = useState(searchParams.get("district") || searchParams.get("search") || "");
+  const [appliedSearch, setAppliedSearch] = useState(searchParams.get("district") || searchParams.get("search") || "");
+  const [minPriceInput, setMinPriceInput] = useState(searchParams.get("min_price") || "");
+  const [maxPriceInput, setMaxPriceInput] = useState(searchParams.get("max_price") || "");
+  const [appliedMinPrice, setAppliedMinPrice] = useState(searchParams.get("min_price") || "");
+  const [appliedMaxPrice, setAppliedMaxPrice] = useState(searchParams.get("max_price") || "");
+  const [bedrooms, setBedrooms] = useState(searchParams.get("min_bedrooms") || "");
+  const [propertyType, setPropertyType] = useState(searchParams.get("property_type") || "");
   
   const [loading, setLoading] = useState(true);
+
+  // Update URL when applied filters change (to keep URL in sync)
+  
+  useEffect(() => {
+    const newParams = new URLSearchParams();
+    if (appliedSearch) newParams.set("search", appliedSearch);
+    if (appliedMinPrice) newParams.set("min_price", appliedMinPrice);
+    if (appliedMaxPrice) newParams.set("max_price", appliedMaxPrice);
+    if (bedrooms) newParams.set("min_bedrooms", bedrooms);
+    if (propertyType) newParams.set("property_type", propertyType);
+    if (currentPage > 1) newParams.set("page", currentPage.toString());
+    
+    setSearchParams(newParams, { replace: true });
+  }, [appliedSearch, appliedMinPrice, appliedMaxPrice, bedrooms, propertyType, currentPage, setSearchParams]);
+
 
   // Fetch from backend
   useEffect(() => {
@@ -38,6 +54,7 @@ export default function Properties() {
         if (appliedMinPrice) filters.min_price = appliedMinPrice;
         if (appliedMaxPrice) filters.max_price = appliedMaxPrice;
         if (bedrooms) filters.min_bedrooms = bedrooms;
+        if (propertyType) filters.property_type = propertyType;
         
         const res = await api.getProperties(filters);
         
@@ -50,7 +67,8 @@ export default function Properties() {
       }
     };
     fetchProperties();
-  }, [currentPage, appliedSearch, appliedMinPrice, appliedMaxPrice, bedrooms, searchParams]);
+  }, [currentPage, appliedSearch, appliedMinPrice, appliedMaxPrice, bedrooms, propertyType]);
+
   const clearFilters = () => {
     setSearchInput("");
     setAppliedSearch("");
@@ -59,16 +77,21 @@ export default function Properties() {
     setAppliedMinPrice("");
     setAppliedMaxPrice("");
     setBedrooms("");
+    setPropertyType("");
     setCurrentPage(1);
   };
 
+  // Handle search button click (in addition to Enter key)
+const handleSearch = () => {
+  setAppliedSearch(searchInput);
+  setAppliedMinPrice(minPriceInput);
+  setAppliedMaxPrice(maxPriceInput);
+  setCurrentPage(1);
+};
 
   const goToPage = (page) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set("page", page);
-    setSearchParams(newParams);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
@@ -96,6 +119,7 @@ export default function Properties() {
     return <div className="min-h-screen flex items-center justify-center">Loading properties...</div>;
   }
 
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -103,19 +127,20 @@ export default function Properties() {
         <h1 className="text-2xl font-semibold text-gray-800">Properties</h1>
         <p className="text-sm text-gray-500">{filteredProperties.length} homes available on this page</p>
       </div>
-
       {/* Sticky Filters */}
       <div className="sticky top-0 z-20 bg-white shadow-md py-4 border-b">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-3">
           <input
             type="text"
-            placeholder="🔍 Search title or city..."
+            placeholder="🔍 Search title or district..."
             className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 setAppliedSearch(searchInput);
+                setAppliedMinPrice(minPriceInput);
+                setAppliedMaxPrice(maxPriceInput);
                 setCurrentPage(1);
               }
             }}
@@ -129,7 +154,9 @@ export default function Properties() {
               onChange={(e) => setMinPriceInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
+                  setAppliedSearch(searchInput);
                   setAppliedMinPrice(minPriceInput);
+                  setAppliedMaxPrice(maxPriceInput);
                   setCurrentPage(1);
                 }
               }}
@@ -143,6 +170,8 @@ export default function Properties() {
               onChange={(e) => setMaxPriceInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
+                  setAppliedSearch(searchInput);
+                  setAppliedMinPrice(minPriceInput);
                   setAppliedMaxPrice(maxPriceInput);
                   setCurrentPage(1);
                 }
@@ -163,14 +192,41 @@ export default function Properties() {
             <option value="2">2+ Bed</option>
             <option value="3">3+ Bed</option>
           </select>
-          <button
-            onClick={clearFilters}
-            className="border rounded-xl hover:bg-gray-100 transition font-medium"
+
+          <select
+            className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none"
+            value={propertyType}
+            onChange={(e) => {
+              setPropertyType(e.target.value);
+              setCurrentPage(1);
+            }}
           >
-            Clear ✖
-          </button>
+            <option value="">All Types</option>
+            <option value="apartment">Apartment</option>
+            <option value="villa">Villa</option>
+            <option value="house">House</option>
+            <option value="studio">Studio</option>
+            <option value="commercial">Commercial</option>
+          </select>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              className="bg-[#087474] text-white rounded-xl hover:bg-[#066565] transition font-medium px-6"
+            >
+              Search
+            </button>
+            <button
+              onClick={clearFilters}
+              className="border rounded-xl hover:bg-gray-100 transition font-medium px-4"
+            >
+              Clear ✖
+            </button>
+          </div>
         </div>
       </div>
+
+
       {/* Grid - with forced layout for better scroll performance */}
       <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 [transform:translateZ(0)]">
         {filteredProperties.map((property) => (
@@ -179,12 +235,15 @@ export default function Properties() {
             className="bg-[#0b3d3d] text-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group border border-white/10"
           >
             <div className="relative h-48 overflow-hidden bg-gray-800">
-              <img
-                src="https://placeholder.com"
-                alt={property.title}
-                loading="lazy"
-                className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
-              />
+            <img
+              src={property.images?.[0] || property.mainImage || `https://picsum.photos/seed/${property.property_id}/800/600`}
+              alt={property.title}
+              loading="lazy"
+              className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+              onError={(e) => {
+                e.target.src = `https://picsum.photos/seed/${property.property_id}/800/600`;
+              }}
+            />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
               <span className="absolute top-3 right-3 bg-[#fbbf24] text-black text-[10px] font-bold px-2 py-1 rounded-lg uppercase">
                 {property.availability_status}
