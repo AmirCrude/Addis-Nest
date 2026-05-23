@@ -255,7 +255,46 @@ export const api = {
     });
     const data = await handleResponse(response);
     return data.data;
-  }
+  },
+  // ====================== BOOKINGS ======================
+  createBooking: async (propertyId) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/${propertyId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  getMyBookings: async () => {
+    const response = await fetch(`${API_BASE_URL}/bookings/my`, {
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  cancelBooking: async (bookingId) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  approveBooking: async (bookingId) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/approve`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  rejectBooking: async (bookingId) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/reject`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
 };
 
 export default api;

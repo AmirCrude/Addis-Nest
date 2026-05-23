@@ -1,12 +1,13 @@
-// src/pages/Login.jsx - UPDATE the handleSubmit function only
+// src/pages/Login.jsx
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import { jwtDecode } from "jwt-decode";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -22,28 +23,27 @@ export default function Login() {
       if (response.status === 'success' && response.user?.token) {
         const token = response.user.token;
         
-        // 1. Decode the token to get the hidden data (id, name, etc.)
         const decoded = jwtDecode(token);
     
-        // 2. Build userData using both the response and the decoded token
         const userData = {
           email: form.email,
-          role: response.user.role, // "landlord" or "tenant" (already outside the JWT)
-          // Extract from decoded token (Check your console log to see exact keys like 'userId' or 'sub')
+          role: response.user.role,
           id: decoded.userId, 
           name: decoded.name,
         };
         
-        // 3. Save to Context
         login(token, userData);
-        
-        // 4. Navigate based on role
-        if (response.user.role === 'landlord') {
+
+        // Check for redirect URL first, then navigate based on role
+        const redirectTo = searchParams.get("redirect");
+
+        if (redirectTo) {
+          navigate(redirectTo);
+        } else if (response.user.role === 'landlord') {
           navigate("/landlord");
         } else if (response.user.role === 'tenant') {
           navigate("/tenant-dashboard");
         } else {
-          // Fallback for any other role
           navigate("/");
         }
       }
@@ -56,7 +56,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">

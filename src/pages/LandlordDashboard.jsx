@@ -19,6 +19,12 @@ export default function LandlordDashboard() {
     totalValue: 0,
   });
 
+  const [bookings, setBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [bookingAction, setBookingAction] = useState(""); // "approve" or "reject"
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
 
@@ -79,6 +85,7 @@ export default function LandlordDashboard() {
 
   useEffect(() => {
     fetchMyProperties();
+    fetchBookings();
   }, []);
 
   // Reactive Stats & Filtering
@@ -103,6 +110,42 @@ export default function LandlordDashboard() {
 
     setStats({ total, available, rented, totalValue });
   }, [properties, searchTerm, typeFilter]);
+
+  const fetchBookings = async () => {
+    try {
+      setBookingsLoading(true);
+      const res = await api.getMyBookings();
+      setBookings(res.data || []);
+    } catch (err) {
+      console.error("Failed to load bookings:", err);
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
+  const openBookingModal = (booking, action) => {
+    setSelectedBooking(booking);
+    setBookingAction(action);
+    setShowBookingModal(true);
+  };
+  
+  const confirmBookingAction = async () => {
+    if (!selectedBooking) return;
+    try {
+      if (bookingAction === "approve") {
+        await api.approveBooking(selectedBooking.booking_id);
+      } else {
+        await api.rejectBooking(selectedBooking.booking_id);
+      }
+      // Refresh bookings and properties
+      await fetchBookings();
+      await fetchMyProperties();
+      setShowBookingModal(false);
+      setSelectedBooking(null);
+    } catch (err) {
+      alert(err.message || "Failed to process booking");
+    }
+  };
 
   if (loading) return <div className="min-h-screen bg-[#0b3d3d] flex items-center justify-center text-white">Loading Dashboard...</div>;
 
@@ -129,6 +172,89 @@ export default function LandlordDashboard() {
         <Stat title="Available" value={stats.available} icon="✅" />
         <Stat title="Rented" value={stats.rented} icon="🔑"/>
         <Stat title="Est. Monthly Revenue" value={`${stats.totalValue.toLocaleString()} ETB`} icon="💰" color="text-[#fbbf24]" />
+      </div>
+
+      {/* BOOKINGS SECTION */}
+      <div className="max-w-7xl mx-auto px-4 mt-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">📋</span>
+              <h2 className="font-semibold text-gray-800">Booking Requests</h2>
+              {bookings.filter(b => b.status === 'pending').length > 0 && (
+                <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {bookings.filter(b => b.status === 'pending').length} Pending
+                </span>
+              )}
+            </div>
+          </div>
+          
+          <div className="p-4">
+            {bookingsLoading ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-4 border-[#087474] border-t-transparent rounded-full animate-spin mx-auto"></div>
+              </div>
+            ) : bookings.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">No booking requests yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {bookings.map((booking) => (
+                  <div
+                    key={booking.booking_id}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition"
+                  >
+                    {/* Tenant Avatar */}
+                    <div className="w-10 h-10 bg-[#0b3d3d] rounded-full flex items-center justify-center text-[#fbbf24] font-bold text-sm flex-shrink-0">
+                      {booking.tenant_name?.charAt(0)?.toUpperCase() || "T"}
+                    </div>
+                    
+                    {/* Booking Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-800 text-sm truncate">
+                          {booking.tenant_name}
+                        </p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          booking.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        wants to rent <span className="font-medium text-gray-700">{booking.title}</span>
+                      </p>
+                      <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
+                        <span>{booking.tenant_email}</span>
+                        {booking.tenant_phone && <span>• {booking.tenant_phone}</span>}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {booking.status === 'pending' && (
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => openBookingModal(booking, "approve")}
+                          className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-bold hover:bg-green-600 transition"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => openBookingModal(booking, "reject")}
+                          className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-bold hover:bg-red-200 transition"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* SEARCH & FILTERS */}
@@ -284,6 +410,60 @@ export default function LandlordDashboard() {
           </div>
         )}
       </div>
+
+      {/* BOOKING CONFIRMATION MODAL */}
+      {showBookingModal && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowBookingModal(false)}
+          ></div>
+          
+          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100">
+            <div className="text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl ${
+                bookingAction === "approve" ? "bg-green-50 text-green-500" : "bg-red-50 text-red-500"
+              }`}>
+                {bookingAction === "approve" ? "✅" : "❌"}
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                {bookingAction === "approve" ? "Approve Booking?" : "Reject Booking?"}
+              </h3>
+              <p className="text-gray-500 text-sm mb-2">
+                {bookingAction === "approve" 
+                  ? "This will mark the property as rented." 
+                  : "This will decline the tenant's request."
+                }
+              </p>
+              {selectedBooking && (
+                <p className="text-sm text-gray-600 mb-6">
+                  Tenant: <span className="font-semibold">{selectedBooking.tenant_name}</span><br/>
+                  Property: <span className="font-semibold">{selectedBooking.title}</span>
+                </p>
+              )}
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBookingModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBookingAction}
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold text-white transition shadow-lg ${
+                    bookingAction === "approve"
+                      ? "bg-green-500 hover:bg-green-600 shadow-green-200"
+                      : "bg-red-500 hover:bg-red-600 shadow-red-200"
+                  }`}
+                >
+                  {bookingAction === "approve" ? "Approve" : "Reject"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DELETE CONFIRMATION MODAL */}
       {showDeleteModal && (

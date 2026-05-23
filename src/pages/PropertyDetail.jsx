@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -14,6 +15,10 @@ export default function PropertyDetail() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [existingBooking, setExistingBooking] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -52,13 +57,51 @@ export default function PropertyDetail() {
     fetchAllData();
   }, [id]);
 
-  const handleContactLandlord = () => {
+  useEffect(() => {
+    const checkExistingBooking = async () => {
+      if (!user || user.role !== 'tenant') return;
+      try {
+        const res = await api.getMyBookings();
+        const bookings = res.data || [];
+        const existing = bookings.find(b => b.property_id === parseInt(id));
+        setExistingBooking(existing || null);
+      } catch (err) {
+        // ignore
+      }
+    };
+    if (id && user) checkExistingBooking();
+  }, [id, user]);
+
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.show]);
+
+  const handleContactLandlord = async () => {
+    if (!user) {
+      navigate(`/login?redirect=/properties/${id}`);
+      return;
+    }
+    
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await api.createBooking(id);
       setShowContactAlert(true);
-      setIsLoading(false);
       setTimeout(() => setShowContactAlert(false), 3000);
-    }, 800);
+      
+      // Immediately set existing booking so button changes to "Cancel Request"
+      setExistingBooking({
+        booking_id: response.data?.booking_id,
+        property_id: parseInt(id),
+        status: 'pending'
+      });
+    } catch (err) {
+      alert(err.message || "Failed to send booking request");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleShareLink = async () => {
@@ -81,6 +124,18 @@ export default function PropertyDetail() {
 
   const handleBack = () => {
     navigate(-1);
+  };
+  
+  const handleCancelBooking = async () => {
+    if (!existingBooking) return;
+    try {
+      await api.cancelBooking(existingBooking.booking_id);
+      setExistingBooking(null);
+      setShowCancelModal(false);
+      setNotification({ show: true, type: 'success', message: 'Booking cancelled' });
+    } catch (err) {
+      alert(err.message || "Failed to cancel booking");
+    }
   };
 
   if (loading) {
@@ -118,6 +173,26 @@ export default function PropertyDetail() {
       {showCopiedToast && (
         <div className="fixed top-24 right-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in text-sm">
           🔗 Link copied to clipboard!
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div className="fixed top-24 right-4 z-50 animate-slide-in-right">
+          <div className={`rounded-2xl shadow-2xl border max-w-md ${notification.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+            <div className="flex items-start gap-3 p-4 pr-12">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${notification.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                {notification.type === 'success' ? '✓' : '✗'}
+              </div>
+              <div>
+                <h4 className={`font-bold text-sm mb-0.5 ${notification.type === 'success' ? 'text-emerald-800' : 'text-red-800'}`}>
+                  {notification.type === 'success' ? 'Success' : 'Error'}
+                </h4>
+                <p className={`text-sm ${notification.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>{notification.message}</p>
+              </div>
+              <button onClick={() => setNotification(prev => ({ ...prev, show: false }))} className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-black/10">✕</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -377,24 +452,29 @@ export default function PropertyDetail() {
                   )}
                 </div>
 
-                <button
-                  onClick={handleContactLandlord}
-                  disabled={isLoading}
-                  className="w-full bg-[#0b3d3d] text-white py-3.5 rounded-xl font-bold hover:bg-[#087474] transition-all disabled:opacity-50 shadow-lg hover:shadow-xl active:scale-[0.98]"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Sending...
-                    </span>
-                  ) : (
-                    '📅 Book Viewing'
-                  )}
-                </button>
-
+                {existingBooking?.status === 'pending' ? (
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="w-full bg-red-500 text-white py-3.5 rounded-xl font-bold hover:bg-red-600 transition-all shadow-lg"
+                  >
+                    Cancel Request
+                  </button>
+                ) : existingBooking?.status === 'approved' || existingBooking?.status === 'rejected' ? (
+                  <button
+                    disabled
+                    className="w-full bg-gray-300 text-gray-500 py-3.5 rounded-xl font-bold cursor-not-allowed"
+                  >
+                    {existingBooking.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleContactLandlord}
+                    disabled={isLoading}
+                    className="w-full bg-[#0b3d3d] text-white py-3.5 rounded-xl font-bold hover:bg-[#087474] transition-all disabled:opacity-50 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                  >
+                    {isLoading ? 'Sending...' : '📅 Book Viewing'}
+                  </button>
+                )}
                 {showContactAlert && (
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl animate-fade-in">
                     <p className="text-green-700 text-sm text-center font-medium">
@@ -404,6 +484,21 @@ export default function PropertyDetail() {
                 )}
               </div>
             </div>
+
+            {showCancelModal && (
+              <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCancelModal(false)}></div>
+                <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center">
+                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✕</div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Cancel Request?</h3>
+                  <p className="text-gray-500 text-sm mb-6">Are you sure you want to cancel your booking request for this property?</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowCancelModal(false)} className="flex-1 px-4 py-3 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition">Keep</button>
+                    <button onClick={handleCancelBooking} className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 transition shadow-lg">Cancel Request</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
