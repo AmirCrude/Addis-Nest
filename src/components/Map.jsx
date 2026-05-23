@@ -60,7 +60,8 @@ function PropertyPopup({ property }) {
       {property.images && property.images[0] && (
         <div className="mb-3 rounded-lg overflow-hidden h-32">
           <img 
-            src={property.images[0]} 
+            // src={property.images[0]} 
+            src={`http://localhost:5000${property.images[0]}`}
             alt={property.title}
             className="w-full h-full object-cover"
           />

@@ -236,7 +236,11 @@ const handleSearch = () => {
           >
             <div className="relative h-48 overflow-hidden bg-gray-800">
             <img
-              src={property.images?.[0] || property.mainImage || `https://picsum.photos/seed/${property.property_id}/800/600`}
+              src={property.images?.[0] 
+                  ? `http://localhost:5000${property.images[0]}` 
+                  : (property.mainImage || `https://picsum.photos/seed/${property.property_id}/800/600`)
+                }
+              // src={property.images?.[0] || property.mainImage || `https://picsum.photos/seed/${property.property_id}/800/600`}
               alt={property.title}
               loading="lazy"
               className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
@@ -257,14 +261,25 @@ const handleSearch = () => {
 
             <div className="p-5">
               <h3 className="text-md font-bold line-clamp-1 group-hover:text-[#fbbf24] transition">{property.title}</h3>
-              <p className="text-white/70 text-xs mt-1 flex items-center gap-1">
-                📍 {property.city}, {property.district}
+              <p className="text-white/90 text-xs mt-1 flex items-center gap-1">
+                <span className="text-white/50">📍</span>
+                <span className="font-bold text-[#fbbf24]">{property.district}</span>
+                <span className="text-white/50">|</span>
+                <span className="text-white/60">{property.city}</span>
               </p>
-              
               <div className="flex justify-between text-[11px] text-white/50 mt-4 border-y border-white/10 py-3">
-                <span className="flex flex-col items-center"><b>{property.bedrooms}</b> Beds</span>
-                <span className="flex flex-col items-center"><b>{property.bathrooms}</b> Baths</span>
-                <span className="flex flex-col items-center"><b>{property.size}</b> m²</span>
+                {property.bedrooms > 0 && (
+                  <span className="flex flex-col items-center"><b>{property.bedrooms}</b> Beds</span>
+                )}
+                {property.bathrooms > 0 && (
+                  <span className="flex flex-col items-center"><b>{property.bathrooms}</b> Baths</span>
+                )}
+                {property.size > 0 && (
+                  <span className="flex flex-col items-center"><b>{property.size}</b> m²</span>
+                )}
+                {property.floor_number > 0 && (
+                  <span className="flex flex-col items-center"><b>{property.floor_number}</b> Floor</span>
+                )}
               </div>
 
               <div className="flex justify-between items-center mt-4">

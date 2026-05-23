@@ -110,9 +110,8 @@ export default function PropertyDetail() {
   }
 
   const displayImage = images.length > 0 
-    ? images[currentImageIndex]?.image_url 
-    : "https://picsum.photos/1200/800";
-
+  ? `http://localhost:5000${images[currentImageIndex]?.image_url}` 
+  : "https://picsum.photos/1200/800";
   return (
     <div className="bg-gray-50 min-h-screen pt-20">
       {/* Copied Toast */}
@@ -208,18 +207,30 @@ export default function PropertyDetail() {
                 <p className="text-xl md:text-2xl font-bold text-[#087474]">{Number(property.price).toLocaleString()}</p>
                 <p className="text-xs text-gray-500 mt-1">ETB/month</p>
               </div>
-              <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
-                <p className="text-xl md:text-2xl font-bold text-gray-800">{property.bedrooms}</p>
-                <p className="text-xs text-gray-500 mt-1">Bedrooms</p>
-              </div>
-              <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
-                <p className="text-xl md:text-2xl font-bold text-gray-800">{property.bathrooms}</p>
-                <p className="text-xs text-gray-500 mt-1">Bathrooms</p>
-              </div>
-              <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
-                <p className="text-xl md:text-2xl font-bold text-gray-800">{property.size}</p>
-                <p className="text-xs text-gray-500 mt-1">m²</p>
-              </div>
+              {property.bedrooms > 0 && (
+                <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
+                  <p className="text-xl md:text-2xl font-bold text-gray-800">{property.bedrooms}</p>
+                  <p className="text-xs text-gray-500 mt-1">Bedrooms</p>
+                </div>
+              )}
+              {property.bathrooms > 0 && (
+                <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
+                  <p className="text-xl md:text-2xl font-bold text-gray-800">{property.bathrooms}</p>
+                  <p className="text-xs text-gray-500 mt-1">Bathrooms</p>
+                </div>
+              )}
+              {property.size > 0 && (
+                <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
+                  <p className="text-xl md:text-2xl font-bold text-gray-800">{property.size}</p>
+                  <p className="text-xs text-gray-500 mt-1">m²</p>
+                </div>
+              )}
+              {property.floor_number > 0 && (
+                <div className="bg-white rounded-xl p-4 text-center border hover:shadow-md transition">
+                  <p className="text-xl md:text-2xl font-bold text-gray-800">{property.floor_number}</p>
+                  <p className="text-xs text-gray-500 mt-1">Floor</p>
+                </div>
+              )}
             </div>
 
             {/* Description */}
@@ -253,14 +264,14 @@ export default function PropertyDetail() {
               {/* Image Gallery - Compact */}
               <div className="relative group cursor-pointer" onClick={() => setShowImageModal(true)}>
                 <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-gray-200 shadow-lg">
-                  <img
-                    src={displayImage}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    alt={property.title}
-                    onError={(e) => {
-                      e.target.src = "https://picsum.photos/1200/800";
-                    }}
-                  />
+                <img
+                  src={`http://localhost:5000${images[currentImageIndex]?.image_url}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  alt={property.title}  
+                  onError={(e) => {
+                    e.target.src = "https://picsum.photos/1200/800";
+                  }}
+                />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                     <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg text-sm font-medium">
                       Click to view photos
@@ -318,12 +329,15 @@ export default function PropertyDetail() {
                         index === currentImageIndex ? 'border-[#087474] ring-1 ring-[#087474]' : 'border-transparent opacity-60 hover:opacity-100'
                       }`}
                     >
-                      <img src={displayImage} alt="" className="w-full h-full object-cover" />
+                      <img 
+                        src={`http://localhost:5000${img.image_url}`} 
+                        alt="" 
+                        className="w-full h-full object-cover" 
+                      />
                     </button>
                   ))}
                 </div>
               )}
-
               {/* Landlord Card */}
               <div className="bg-white rounded-2xl shadow-lg border p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">

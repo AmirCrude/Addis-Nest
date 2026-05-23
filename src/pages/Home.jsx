@@ -274,48 +274,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* FOOTER */}
-      <footer className="bg-[#0b3d3d] text-white py-12">
-        <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-8">
-
-          <div>
-            <h2 className="text-xl font-bold mb-3">AddisNest</h2>
-            <p className="text-sm text-white/70">
-              Find trusted rental homes across Ethiopia.
-            </p>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-3">Links</h3>
-            <ul className="space-y-2 text-sm text-white/70">
-              <li><Link to="/" className="hover:text-[#fbbf24] transition">Home</Link></li>
-              <li><Link to="/properties" className="hover:text-[#fbbf24] transition">Properties</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-3">Account</h3>
-            <ul className="space-y-2 text-sm text-white/70">
-              <li><Link to="/login" className="hover:text-[#fbbf24] transition">Login</Link></li>
-              <li><Link to="/register" className="hover:text-[#fbbf24] transition">Register</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-3">Contact</h3>
-            <p className="text-sm text-white/70">
-              Addis Ababa, Ethiopia
-            </p>
-          </div>
-
-        </div>
-
-        <div className="text-center text-white/50 text-sm mt-8">
-          © {new Date().getFullYear()} AddisNest
-        </div>
-      </footer>
-
     </div>
   );
 }

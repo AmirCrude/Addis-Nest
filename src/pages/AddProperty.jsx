@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import api from "../utils/api.js"
+import LocationSearch from "../components/LocationSearch";
 
 // Fix for default Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -26,6 +27,7 @@ export default function AddProperty() {
     type: "Apartment",
     latitude: "9.0320",
     longitude: "38.7469",
+    floor: "",
   });
   const [images, setImages] = useState([]);
   const [amenitiesList, setAmenitiesList] = useState([]);
@@ -54,6 +56,14 @@ export default function AddProperty() {
     };
     fetchAmenities();
   }, []);
+
+  const handleLocationSelect = (location) => {
+    setForm(prev => ({
+      ...prev,
+      latitude: location.latitude,
+      longitude: location.longitude
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -97,8 +107,10 @@ export default function AddProperty() {
       type: newType,
       bedrooms: newType === 'Commercial' ? '' : prev.bedrooms,
       bathrooms: newType === 'Commercial' ? '' : prev.bathrooms,
+      floor: (newType === 'House' || newType === 'Villa') ? '' : prev.floor,
     }));
   };
+
 
   const validateForm = () => {
     const newErrors = {};
@@ -109,10 +121,16 @@ export default function AddProperty() {
       if (!form.bedrooms) newErrors.bedrooms = "Required";
       if (!form.bathrooms) newErrors.bathrooms = "Required";
     }
+    // ADD FLOOR VALIDATION
+    if ((form.type === 'Apartment' || form.type === 'Studio' || form.type === 'Commercial') && !form.floor) {
+      newErrors.floor = "Required";
+    }
     if (images.length === 0) newErrors.images = "At least one image required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -128,8 +146,9 @@ export default function AddProperty() {
         propertyPayload.bedrooms = Number(form.bedrooms);
         propertyPayload.bathrooms = Number(form.bathrooms);
       }
-      if (form.type === 'Commercial' && form.parkingSpaces) {
-        propertyPayload.parking_spaces = Number(form.parkingSpaces);
+      // ADD FLOOR NUMBER
+      if (form.type === 'Apartment' || form.type === 'Studio' || form.type === 'Commercial') {
+        propertyPayload.floor_number = Number(form.floor);
       }
       
       const propertyResponse = await api.createProperty(propertyPayload);
@@ -196,21 +215,23 @@ export default function AddProperty() {
       {/* Page Content */}
       <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          
-          {/* Header with background accent */}
-          <div className="bg-gradient-to-r from-[#0b3d3d] to-[#087474] rounded-2xl p-8 mb-8 text-white shadow-lg">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">
-                🏠
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">List Your Property</h1>
-                <p className="text-white/70 text-sm mt-1">Fill in the details below to reach thousands of potential tenants</p>
+        
+            {/* Header with background accent */}
+            <div className="bg-gradient-to-r from-[#0b3d3d] to-[#087474] rounded-2xl p-8 mb-8 text-white shadow-lg">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => navigate("/landlord")}
+                  className="w-14 h-14 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 transition"
+                >
+                  ←
+                </button>
+                <div>
+                  <h1 className="text-2xl font-bold">List Your Property</h1>
+                  <p className="text-white/70 text-sm mt-1">Fill in the details below to reach thousands of potential tenants</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
             
             {/* TWO COLUMN LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
@@ -255,6 +276,7 @@ export default function AddProperty() {
                     </div>
                   </div>
                 </div>
+
                 {/* Property Details Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -265,36 +287,50 @@ export default function AddProperty() {
                   </div>
                   <div className="p-6 space-y-4">
                     {form.type !== 'Commercial' ? (
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className={labelBase}>Bedrooms</label>
-                          <input name="bedrooms" type="number" value={form.bedrooms} placeholder="Beds" onChange={handleChange} className={inputBase} />
-                          {errors.bedrooms && <p className="text-red-500 text-xs mt-1">{errors.bedrooms}</p>}
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className={labelBase}>Bedrooms</label>
+                            <input name="bedrooms" type="number" value={form.bedrooms} placeholder="Beds" onChange={handleChange} className={inputBase} />
+                            {errors.bedrooms && <p className="text-red-500 text-xs mt-1">{errors.bedrooms}</p>}
+                          </div>
+                          <div>
+                            <label className={labelBase}>Bathrooms</label>
+                            <input name="bathrooms" type="number" value={form.bathrooms} placeholder="Baths" onChange={handleChange} className={inputBase} />
+                            {errors.bathrooms && <p className="text-red-500 text-xs mt-1">{errors.bathrooms}</p>}
+                          </div>
+                          <div>
+                            <label className={labelBase}>Area (m²)</label>
+                            <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
+                          </div>
                         </div>
-                        <div>
-                          <label className={labelBase}>Bathrooms</label>
-                          <input name="bathrooms" type="number" value={form.bathrooms} placeholder="Baths" onChange={handleChange} className={inputBase} />
-                          {errors.bathrooms && <p className="text-red-500 text-xs mt-1">{errors.bathrooms}</p>}
-                        </div>
-                        <div>
-                          <label className={labelBase}>Area (m²)</label>
-                          <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
-                        </div>
-                      </div>
+                        {/* Floor input for Apartment and Studio */}
+                        {(form.type === 'Apartment' || form.type === 'Studio') && (
+                          <div>
+                            <label className={labelBase}>Floor Number</label>
+                            <input name="floor" type="number" value={form.floor} placeholder="e.g., 3" onChange={handleChange} className={inputBase} />
+                            {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className={labelBase}>Area (m²)</label>
-                          <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
+                      <>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className={labelBase}>Area (m²)</label>
+                            <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
+                          </div>
+                          <div>
+                            <label className={labelBase}>Floor</label>
+                            <input name="floor" type="number" value={form.floor} placeholder="Floor" onChange={handleChange} className={inputBase} />
+                            {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
+                          </div>
                         </div>
-                        <div>
-                          <label className={labelBase}>Parking</label>
-                          <input name="parkingSpaces" type="number" value={form.parkingSpaces} placeholder="Spots" onChange={handleChange} className={inputBase} />
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
+                
                 {/* Amenities Card */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -354,14 +390,21 @@ export default function AddProperty() {
                           </svg>
                         </button>
                       </div>
+
                       {showMap && (
-                        <div className="h-48 rounded-xl overflow-hidden border-2 border-gray-200 mt-3">
-                          <MapContainer center={[parseFloat(form.latitude), parseFloat(form.longitude)]} zoom={13} style={{ height: "100%", width: "100%" }}>
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            <LocationMarker />
-                          </MapContainer>
-                        </div>
-                      )}
+                          <div className="h-48 rounded-xl overflow-hidden border-2 border-gray-200 mt-3">
+                            <MapContainer center={[parseFloat(form.latitude), parseFloat(form.longitude)]} zoom={13} style={{ height: "100%", width: "100%" }}>
+                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                              
+                              {/* ADD THIS - Search bar */}
+                              <div className="absolute top-2 left-2 right-2 z-[1000]">
+                                <LocationSearch onSelect={handleLocationSelect} />
+                              </div>
+                              
+                              <LocationMarker />
+                            </MapContainer>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>

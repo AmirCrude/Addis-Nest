@@ -4,6 +4,8 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import api from "../utils/api.js";
+import LocationSearch from "../components/LocationSearch";
+
 
 // Fix for default Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -30,9 +32,6 @@ export default function EditProperty() {
     latitude: "9.0320",
     longitude: "38.7469",
     floor: "",
-    totalFloors: "",
-    parkingSpaces: "",
-    furnishing: "",
   });
 
   const [images, setImages] = useState([]);
@@ -43,6 +42,9 @@ export default function EditProperty() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState({ show: false, type: '', message: '' });
+
+  const [currentStatus, setCurrentStatus] = useState("");
+  const [showStatusModal, setShowStatusModal] = useState(false);
 
   useEffect(() => {
     if (notification.show) {
@@ -65,6 +67,7 @@ export default function EditProperty() {
           return;
         }
   
+        setCurrentStatus(data.availability_status || "available");
         setForm({
           title: data.title || "",
           description: data.description || "",
@@ -72,14 +75,12 @@ export default function EditProperty() {
           price: data.price?.toString() || "",
           bedrooms: data.bedrooms?.toString() || "",
           bathrooms: data.bathrooms?.toString() || "",
-          area: (data.size || data.area)?.toString() || "",
-          type: data.property_type || data.type || "Apartment",
+          area: (data.size || data.area)?.toString() || "",type: data.property_type 
+    ? data.property_type.charAt(0).toUpperCase() + data.property_type.slice(1).toLowerCase() 
+    : "Apartment",
           latitude: (data.latitude || 9.0320).toString(),
           longitude: (data.longitude || 38.7469).toString(),
           floor: data.floor_number?.toString() || "",
-          totalFloors: data.total_floors?.toString() || "",
-          parkingSpaces: data.parking_spaces?.toString() || "",
-          furnishing: data.furnishing || "",
         });
   
         const selectedAmenitiesData = await api.getPropertyAmenities(propertyId);
@@ -113,10 +114,43 @@ export default function EditProperty() {
     if (propertyId) loadData();
   }, [propertyId, navigate]);
 
+
+  const handleLocationSelect = (location) => {
+    setForm(prev => ({
+      ...prev,
+      latitude: location.latitude,
+      longitude: location.longitude
+    }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleToggleStatus = () => {
+    setShowStatusModal(true);
+  };
+
+  const confirmStatusChange = async () => {
+    const newStatus = currentStatus === "rented" ? "available" : "rented";
+    try {
+      await api.updateProperty(propertyId, { availability_status: newStatus });
+      setCurrentStatus(newStatus);
+      setShowStatusModal(false);
+      setNotification({ 
+        show: true, 
+        type: 'success', 
+        message: `Property marked as ${newStatus}!` 
+      });
+    } catch (err) {
+      setNotification({ 
+        show: true, 
+        type: 'error', 
+        message: "Failed to update status" 
+      });
+    }
   };
 
   function LocationMarker() {
@@ -158,8 +192,6 @@ export default function EditProperty() {
       bedrooms: newType === 'Commercial' ? '' : prev.bedrooms,
       bathrooms: newType === 'Commercial' ? '' : prev.bathrooms,
       floor: (newType === 'House' || newType === 'Villa') ? '' : prev.floor,
-      parkingSpaces: newType !== 'Commercial' ? '' : prev.parkingSpaces,
-      furnishing: newType === 'Commercial' ? '' : prev.furnishing,
     }));
   };
 
@@ -176,7 +208,7 @@ export default function EditProperty() {
       if (!form.bedrooms) newErrors.bedrooms = "Required";
       if (!form.bathrooms) newErrors.bathrooms = "Required";
     }
-    if ((form.type === 'Apartment' || form.type === 'Commercial') && !form.floor) {
+    if ((form.type === 'Apartment' || form.type === 'Studio' || form.type === 'Commercial') && !form.floor) {
       newErrors.floor = "Required";
     }
     if (images.length === 0) newErrors.images = "At least one image required";
@@ -200,8 +232,7 @@ export default function EditProperty() {
         property_type: form.type,
         size: Number(form.area),
         latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
-        availability_status: "available"
+        longitude: parseFloat(form.longitude)
       };
 
       if (form.type !== 'Commercial') {
@@ -209,17 +240,8 @@ export default function EditProperty() {
         propertyPayload.bathrooms = Number(form.bathrooms);
       }
       
-      if (form.type === 'Apartment' || form.type === 'Commercial') {
+      if (form.type === 'Apartment' || form.type === 'Studio' || form.type === 'Commercial') {
         propertyPayload.floor_number = Number(form.floor);
-        if (form.totalFloors) propertyPayload.total_floors = Number(form.totalFloors);
-      }
-      
-      if (form.type === 'Commercial' && form.parkingSpaces) {
-        propertyPayload.parking_spaces = Number(form.parkingSpaces);
-      }
-      
-      if (form.type !== 'Commercial' && form.furnishing) {
-        propertyPayload.furnishing = form.furnishing;
       }
 
       await api.updateProperty(propertyId, propertyPayload);
@@ -301,6 +323,50 @@ export default function EditProperty() {
         </div>
       )}
 
+      {/* Status Change Confirmation Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowStatusModal(false)}></div>
+          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100">
+            <div className="text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl ${
+                currentStatus === "available" ? "bg-yellow-50 text-yellow-500" : "bg-green-50 text-green-500"
+              }`}>
+                {currentStatus === "available" ? "🔑" : "✅"}
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                {currentStatus === "available" ? "Mark as Rented?" : "Mark as Available?"}
+              </h3>
+              <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                {currentStatus === "available" 
+                  ? "Are you sure you want to mark this property as rented? It will no longer appear in search results for new tenants." 
+                  : "Are you sure you want to make this property available again? It will reappear in search results."
+                }
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmStatusChange}
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold text-white transition shadow-lg ${
+                    currentStatus === "available"
+                      ? "bg-yellow-500 hover:bg-yellow-600 shadow-yellow-200"
+                      : "bg-green-500 hover:bg-green-600 shadow-green-200"
+                  }`}
+                >
+                  {currentStatus === "available" ? "Yes, Mark Rented" : "Yes, Make Available"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Content */}
       <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
@@ -314,19 +380,28 @@ export default function EditProperty() {
               >
                 ←
               </button>
-              <div>
+              <div className="flex-1">
                 <h1 className="text-2xl font-bold">Edit Property</h1>
                 <p className="text-white/70 text-sm mt-1">Update your property details below</p>
               </div>
+              <button
+                onClick={handleToggleStatus}
+                className={`px-4 py-2 rounded-xl text-sm font-bold uppercase transition-all shadow-lg ${
+                  currentStatus === "available"
+                    ? "bg-[#fbbf24] text-[#0b3d3d] hover:bg-[#f59e0b]"
+                    : "bg-green-400/20 text-green-300 border border-green-400/30 hover:bg-green-400/30"
+                }`}
+              >
+                {currentStatus === "available" ? "Mark as Rented" : "Make Available"}
+              </button>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             
-            {/* TWO COLUMN LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
               
-              {/* LEFT COLUMN - Takes 3/5 */}
+              {/* LEFT COLUMN */}
               <div className="lg:col-span-3 space-y-5">
                 
                 {/* Basic Information Card */}
@@ -367,7 +442,7 @@ export default function EditProperty() {
                   </div>
                 </div>
 
-                {/* Property Details Card */}
+                {/* Property Details Card - MATCHES AddProperty */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                     <div className="flex items-center gap-3">
@@ -378,7 +453,7 @@ export default function EditProperty() {
                   <div className="p-6 space-y-4">
                     {form.type !== 'Commercial' ? (
                       <>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           <div>
                             <label className={labelBase}>Bedrooms</label>
                             <input name="bedrooms" type="number" value={form.bedrooms} placeholder="Beds" onChange={handleChange} className={inputBase} />
@@ -394,28 +469,11 @@ export default function EditProperty() {
                             <input name="area" type="number" value={form.area} placeholder="Size" onChange={handleChange} className={inputBase} />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className={labelBase}>Furnishing</label>
-                            <select name="furnishing" value={form.furnishing} onChange={handleChange} className={inputBase}>
-                              <option value="">Select status</option>
-                              <option value="furnished">Furnished</option>
-                              <option value="semi-furnished">Semi-Furnished</option>
-                              <option value="unfurnished">Unfurnished</option>
-                            </select>
-                          </div>
-                          {(form.type === 'Apartment' || form.type === 'Studio') && (
-                            <div>
-                              <label className={labelBase}>Floor Number</label>
-                              <input name="floor" type="number" value={form.floor} placeholder="Floor" onChange={handleChange} className={inputBase} />
-                              {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
-                            </div>
-                          )}
-                        </div>
                         {(form.type === 'Apartment' || form.type === 'Studio') && (
                           <div>
-                            <label className={labelBase}>Total Floors in Building</label>
-                            <input name="totalFloors" type="number" value={form.totalFloors} placeholder="e.g., 5" onChange={handleChange} className={inputBase} />
+                            <label className={labelBase}>Floor Number</label>
+                            <input name="floor" type="number" value={form.floor} placeholder="e.g., 3" onChange={handleChange} className={inputBase} />
+                            {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
                           </div>
                         )}
                       </>
@@ -431,14 +489,6 @@ export default function EditProperty() {
                             <input name="floor" type="number" value={form.floor} placeholder="Floor" onChange={handleChange} className={inputBase} />
                             {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
                           </div>
-                          <div>
-                            <label className={labelBase}>Parking</label>
-                            <input name="parkingSpaces" type="number" value={form.parkingSpaces} placeholder="Spots" onChange={handleChange} className={inputBase} />
-                          </div>
-                        </div>
-                        <div>
-                          <label className={labelBase}>Total Floors in Building</label>
-                          <input name="totalFloors" type="number" value={form.totalFloors} placeholder="e.g., 5" onChange={handleChange} className={inputBase} />
                         </div>
                       </>
                     )}
@@ -474,8 +524,8 @@ export default function EditProperty() {
                   </div>
                 </div>
               </div>
-
-              {/* RIGHT COLUMN - Takes 2/5 */}
+              
+              {/* RIGHT COLUMN */}
               <div className="lg:col-span-2 space-y-5">
                 
                 {/* Location Card */}
@@ -508,6 +558,9 @@ export default function EditProperty() {
                         <div className="h-48 rounded-xl overflow-hidden border-2 border-gray-200 mt-3">
                           <MapContainer center={[parseFloat(form.latitude), parseFloat(form.longitude)]} zoom={13} style={{ height: "100%", width: "100%" }}>
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                            <div className="absolute top-2 left-2 right-2 z-[1000]">
+                              <LocationSearch onSelect={handleLocationSelect} />
+                            </div>
                             <LocationMarker />
                           </MapContainer>
                         </div>
@@ -538,7 +591,14 @@ export default function EditProperty() {
                       <div className="grid grid-cols-4 gap-2">
                         {images.map((img, idx) => (
                           <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100">
-                            <img src={img.preview || img.url} alt="" className="w-full h-full object-cover" />
+                            <img 
+                              src={img.isExisting 
+                                ? `http://localhost:5000${img.url}` 
+                                : (img.preview || img.url)
+                              } 
+                              alt="" 
+                              className="w-full h-full object-cover" 
+                            />
                             <button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition">✕</button>
                           </div>
                         ))}
