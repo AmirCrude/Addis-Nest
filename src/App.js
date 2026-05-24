@@ -14,6 +14,8 @@ import AddProperty from './pages/AddProperty';
 import EditProperty from './pages/EditProperty';
 import TenantDashboard from './pages/TenantDashboard';
 import Footer from './components/Footer';
+import AdminDashboard from './pages/AdminDashboard';
+
 
 function App() {
   return (
@@ -38,6 +40,7 @@ function App() {
               <Route path="/tenant-dashboard" element={<TenantDashboard />} />
               <Route path="/add-property" element={<AddProperty />} />
               <Route path="/edit-property/:id" element={<EditProperty />} />
+              <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
           </main>
           <Footer />

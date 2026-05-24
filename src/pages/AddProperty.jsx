@@ -36,6 +36,7 @@ export default function AddProperty() {
   const [showMap, setShowMap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ show: false, type: '', message: '' });
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   useEffect(() => {
     if (notification.show) {
@@ -176,6 +177,39 @@ export default function AddProperty() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleGenerateDescription = async () => {
+    if (!form.title && !form.district) {
+      alert("Please fill in title and district first");
+      return;
+    }
+    
+    setGeneratingDescription(true);
+    try {
+      // Collect selected amenity names
+      const selectedAmenityNames = amenitiesList
+        .filter(a => selectedAmenities.includes(a.amenity_id))
+        .map(a => a.amenity_name)
+        .join(", ");
+      
+      const res = await api.generateDescription({
+        title: form.title,
+        type: form.type,
+        district: form.district,
+        bedrooms: form.bedrooms,
+        bathrooms: form.bathrooms,
+        size: form.area,
+        price: form.price,
+        amenities: selectedAmenityNames,
+      });
+      
+      setForm(prev => ({ ...prev, description: res.data.description }));
+    } catch (err) {
+      alert("Failed to generate description: " + err.message);
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
+
   const inputBase = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-[#087474] focus:border-transparent outline-none transition-all placeholder:text-gray-400";
   const labelBase = "block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5";
 
@@ -273,6 +307,21 @@ export default function AddProperty() {
                     <div>
                       <label className={labelBase}>Description</label>
                       <textarea name="description" value={form.description} placeholder="Describe your property in detail..." onChange={handleChange} rows={3} className={`${inputBase} resize-none`} />
+                      <button
+                        type="button"
+                        onClick={handleGenerateDescription}
+                        disabled={generatingDescription}
+                        className="mt-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-xs font-semibold hover:from-purple-600 hover:to-pink-600 transition disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {generatingDescription ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Generating...
+                          </>
+                        ) : (
+                          <>✨ AI Generate Description</>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -295,7 +295,83 @@ export const api = {
     });
     return await handleResponse(response);
   },
-};
 
+  // ====================== ADMIN ======================
+  getAdminStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  getAdminUsers: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.role) queryParams.append('role', params.role);
+    if (params.search) queryParams.append('search', params.search);
+    const url = `${API_BASE_URL}/admin/users${queryParams.toString() ? '?' + queryParams : ''}`;
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    return await handleResponse(response);
+  },
+
+  getAdminProperties: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.search) queryParams.append('search', params.search);
+    const url = `${API_BASE_URL}/admin/properties${queryParams.toString() ? '?' + queryParams : ''}`;
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    return await handleResponse(response);
+  },
+
+  getAdminFlagged: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/flagged`, {
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  updatePropertyStatus: async (propertyId, status) => {
+    const response = await fetch(`${API_BASE_URL}/admin/properties/${propertyId}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    return await handleResponse(response);
+  },
+
+  banUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/ban`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+
+  unbanUser: async (userId, originalRole) => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/unban`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ originalRole }),
+    });
+    return await handleResponse(response);
+  },
+  
+  // ====================== AI ======================
+  generateDescription: async (propertyData) => {
+    const response = await fetch(`${API_BASE_URL}/ai/generate-description`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(propertyData),
+    });
+    return await handleResponse(response);
+  },
+  
+  enhanceSearch: async (query) => {
+    const response = await fetch(`${API_BASE_URL}/ai/enhance-search?q=${encodeURIComponent(query)}`, {
+      headers: getAuthHeaders(),
+    });
+    return await handleResponse(response);
+  },
+  
+};
 export default api;
 

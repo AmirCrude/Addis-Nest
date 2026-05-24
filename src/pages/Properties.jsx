@@ -81,13 +81,27 @@ export default function Properties() {
     setCurrentPage(1);
   };
 
-  // Handle search button click (in addition to Enter key)
-const handleSearch = () => {
-  setAppliedSearch(searchInput);
-  setAppliedMinPrice(minPriceInput);
-  setAppliedMaxPrice(maxPriceInput);
-  setCurrentPage(1);
-};
+  const handleSearch = async () => {
+    if (searchInput.length > 5 && searchInput.includes(" ")) {
+      try {
+        const enhanced = await api.enhanceSearch(searchInput);
+        
+        if (enhanced?.data?.district) {
+          setAppliedSearch(enhanced.data.keywords?.join(" ") || searchInput);
+          if (enhanced.data.min_bedrooms) setBedrooms(enhanced.data.min_bedrooms.toString());
+          if (enhanced.data.max_price) setAppliedMaxPrice(enhanced.data.max_price.toString());
+        } else {
+          setAppliedSearch(searchInput);
+        }
+      } catch (err) {
+        setAppliedSearch(searchInput);
+      }
+    } else {
+      setAppliedSearch(searchInput);
+    }
+    setAppliedMinPrice(minPriceInput);
+    setCurrentPage(1);
+  };
 
   const goToPage = (page) => {
     if (page < 1 || page > totalPages) return;
@@ -132,16 +146,13 @@ const handleSearch = () => {
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-3">
           <input
             type="text"
-            placeholder="🔍 Search title or district..."
+            placeholder="Search... (try 'cheap house near university')"
             className="px-4 py-2 border rounded-xl focus:ring-2 focus:ring-[#087474] outline-none"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                setAppliedSearch(searchInput);
-                setAppliedMinPrice(minPriceInput);
-                setAppliedMaxPrice(maxPriceInput);
-                setCurrentPage(1);
+                handleSearch();
               }
             }}
           />

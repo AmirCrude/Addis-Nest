@@ -101,6 +101,17 @@ export default function Navbar() {
               </Link>
             )}
 
+            {user?.role === "admin" && (
+              <Link 
+                to="/admin" 
+                className={`relative group transition hover:text-[#fbbf24] ${
+                  isActive("/admin") ? "text-[#fbbf24] font-bold" : "text-white/90"
+                }`}
+              >
+                Admin
+              </Link>
+            )}
+
             <button 
               onClick={handleScrollToAbout} 
               className="relative group hover:text-[#fbbf24] transition text-white/90"
